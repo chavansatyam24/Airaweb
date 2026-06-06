@@ -50,6 +50,7 @@ export const brainApi = {
   getLesson: (id) => api.get(`/api/brain/lessons/${id}`).then(r => r.data),
   deleteLesson: (id) => api.delete(`/api/brain/lessons/${id}`).then(r => r.data),
   constitution: () => api.get('/api/brain/constitution').then(r => r.data),
+  expertKnowledge: () => api.get('/api/brain/expert-knowledge').then(r => r.data),
   clientProfile: (clientId) => api.get(`/api/brain/profile/${clientId}`).then(r => r.data),
 };
 

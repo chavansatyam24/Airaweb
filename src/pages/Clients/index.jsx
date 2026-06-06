@@ -3,9 +3,11 @@ import {
   Box,
   Chip,
   CircularProgress,
+  IconButton,
+  Menu,
   MenuItem,
-  Select,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -61,6 +63,7 @@ export default function Clients() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('balance_desc');
+  const [sortAnchor, setSortAnchor] = useState(null);
   const loaderRef = useRef(null);
 
   useEffect(() => {
@@ -110,23 +113,67 @@ export default function Clients() {
               Clients
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 1, px: 1, height: 30, border: '1px solid rgba(255,255,255,0.2)', mb: 0.5 }}>
-            <SwapVert sx={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', flexShrink: 0 }} />
-            <Select
-              value={sort}
-              onChange={e => setSort(e.target.value)}
+          <Tooltip title="Sort">
+            <IconButton
               size="small"
-              variant="standard"
-              disableUnderline
+              onClick={e => setSortAnchor(e.currentTarget)}
               sx={{
-                color: '#fff', fontSize: '0.6875rem', minWidth: 100,
-                '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.7)', fontSize: 16 },
-                '& .MuiSelect-select': { py: 0, pr: '18px !important', background: 'none' },
+                width: 32, height: 32, borderRadius: '8px',
+                color: sort !== 'balance_desc' ? Colors.gold : 'rgba(255,255,255,0.75)',
+                bgcolor: sortAnchor ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)',
+                border: `1px solid ${sort !== 'balance_desc' ? Colors.gold + '60' : 'rgba(255,255,255,0.2)'}`,
+                transition: 'all 0.15s',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.35)' },
               }}
             >
-              {SORT_OPTIONS.map(o => <MenuItem key={o.val} value={o.val} sx={{ fontSize: '0.8125rem' }}>{o.label}</MenuItem>)}
-            </Select>
-          </Box>
+              <SwapVert sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={sortAnchor}
+            open={Boolean(sortAnchor)}
+            onClose={() => setSortAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            PaperProps={{
+              elevation: 0,
+              sx: {
+                mt: 0.75,
+                minWidth: 210,
+                border: `1px solid ${Colors.border}`,
+                borderRadius: '12px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                overflow: 'hidden',
+                '& .MuiList-root': { py: 0.75 },
+              },
+            }}
+          >
+            <Typography sx={{ px: 2, pt: 1, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', fontFamily: '"JetBrains Mono", monospace' }}>
+              SORT BY
+            </Typography>
+            {SORT_OPTIONS.map(o => (
+              <MenuItem
+                key={o.val}
+                onClick={() => { setSort(o.val); setSortAnchor(null); }}
+                sx={{
+                  mx: 0.75, borderRadius: '8px',
+                  py: 0.875, px: 1.5,
+                  fontSize: '0.8125rem',
+                  fontWeight: sort === o.val ? 700 : 400,
+                  color: sort === o.val ? Colors.navy : Colors.textPrimary,
+                  bgcolor: sort === o.val ? Colors.gold + '15' : 'transparent',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  transition: 'all 0.1s',
+                  '&:hover': { bgcolor: sort === o.val ? Colors.gold + '25' : Colors.bg },
+                }}
+              >
+                {o.label}
+                {sort === o.val && (
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: Colors.gold, ml: 1, flexShrink: 0 }} />
+                )}
+              </MenuItem>
+            ))}
+          </Menu>
         </Box>
       </Box>
 
@@ -186,40 +233,44 @@ export default function Clients() {
           </Box>
         ) : (
           <>
-            {all.map((item) => (
-              <Box
-                key={item.clientCode}
-                onClick={() => navigate(`/client/${item.clientCode}?clientName=${encodeURIComponent(item.clientName || '')}`)}
-                sx={{
-                  display: 'flex', alignItems: 'center', gap: 1.5,
-                  px: 2, py: 1.5,
-                  cursor: 'pointer',
-                  borderBottom: `1px solid ${Colors.borderLight}`,
-                  bgcolor: '#fff',
-                  transition: 'background 0.1s',
-                  '&:hover': { bgcolor: Colors.bg },
-                }}
-              >
-                <TierBadge tier={item.clientTier || item.tier} size={26} />
+            {all.map((item) => {
+              const phone = item.phone || item.customerNumber || item.phoneNumber;
+              return (
+                <Box
+                  key={item.clientCode}
+                  onClick={() => navigate(`/client/${item.clientCode}?clientName=${encodeURIComponent(item.clientName || '')}`)}
+                  sx={{
+                    display: 'flex', alignItems: 'center', gap: 1.5,
+                    px: 2, py: 1.5,
+                    cursor: 'pointer',
+                    borderBottom: `1px solid ${Colors.borderLight}`,
+                    bgcolor: '#fff',
+                    transition: 'background 0.1s',
+                    '&:hover': { bgcolor: Colors.bg },
+                  }}
+                >
+                  <TierBadge tier={item.clientTier || item.tier} size={26} />
 
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: Colors.navy, lineHeight: 1.3 }} noWrap>
-                    {item.clientName}
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.6875rem', color: Colors.textMuted, mt: 0.25 }}>
-                    {item.numberOfBills ?? item.invoiceCount ?? '—'} inv
-                    {item.oldestBillPendingDays ? ` · oldest ${item.oldestBillPendingDays}d` : ''}
-                    {item.totalBalance ? ` · ₹${formatINR(item.totalBalance)}` : ''}
-                  </Typography>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: Colors.navy, lineHeight: 1.3 }} noWrap>
+                      {item.clientName}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: Colors.textMuted, mt: 0.25 }}>
+                      {item.numberOfBills ?? item.invoiceCount ?? '—'} inv
+                      {item.oldestBillPendingDays ? ` · oldest ${item.oldestBillPendingDays}d` : ''}
+                      {item.totalBalance ? ` · ₹${formatINR(item.totalBalance)}` : ''}
+                      {phone ? ` · ${phone}` : ''}
+                    </Typography>
+                  </Box>
+
+                  {item.status === 'blocked' && <StatusPill label="BLOCKED" variant="blocked" />}
+                  {item.status === 'paused' && <StatusPill label="PAUSED" variant="paused" />}
+                  {item.hasActivePromise && <StatusPill label="PROMISE" variant="promise" />}
+
+                  <ChevronRight sx={{ fontSize: 18, color: Colors.textMuted, flexShrink: 0 }} />
                 </Box>
-
-                {item.status === 'blocked' && <StatusPill label="BLOCKED" variant="blocked" />}
-                {item.status === 'paused' && <StatusPill label="PAUSED" variant="paused" />}
-                {item.hasActivePromise && <StatusPill label="PROMISE" variant="promise" />}
-
-                <ChevronRight sx={{ fontSize: 18, color: Colors.textMuted, flexShrink: 0 }} />
-              </Box>
-            ))}
+              );
+            })}
             <div ref={loaderRef} style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {isFetchingNextPage && <CircularProgress size={20} sx={{ color: Colors.gold }} />}
             </div>

@@ -2,6 +2,7 @@ import {
   CheckCircle,
   Close,
   Edit,
+  ForumOutlined,
   Refresh,
   Search,
   SwapVert,
@@ -17,11 +18,12 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Drawer,
   IconButton,
   InputAdornment,
+  Menu,
   MenuItem,
   Paper,
-  Select,
   Snackbar,
   Stack,
   TextField,
@@ -34,7 +36,16 @@ import { useNavigate } from 'react-router-dom';
 import TierBadge from '../../components/common/TierBadge';
 import { adminApi, conversationApi, queueApi } from '../../api/index';
 import { useAuth, useCanWrite } from '../../store/auth';
+import { relativeTime } from '../../utils/format';
 import { Colors } from '../../theme/index';
+
+const renderBold = (text) => {
+  if (!text) return null;
+  const parts = text.split(/\*([^*]+)\*/g);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+  );
+};
 
 const SORT_OPTIONS = [
   { val: 'createdAt_desc', label: 'Newest first' },
@@ -53,6 +64,7 @@ export default function Queue() {
   const [searchText, setSearchText] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sort, setSort] = useState('createdAt_desc');
+  const [sortAnchor, setSortAnchor] = useState(null);
   const [goldFilter, setGoldFilter] = useState(undefined);
   const [editingId, setEditingId] = useState(null);
   const [draftBody, setDraftBody] = useState('');
@@ -65,6 +77,7 @@ export default function Queue() {
   const [regenerating, setRegenerating] = useState(false);
   const [showRegenAll, setShowRegenAll] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [internalTrayItem, setInternalTrayItem] = useState(null);
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'error' });
   const [regeneratingConvId, setRegeneratingConvId] = useState(null);
   const [showRegenSingle, setShowRegenSingle] = useState(false);
@@ -263,23 +276,67 @@ export default function Queue() {
             {regenerating ? <CircularProgress size={16} sx={{ color: Colors.gold }} /> : <Refresh fontSize="small" />}
           </IconButton>
         </Tooltip>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 1, px: 1, height: 32, border: '1px solid rgba(255,255,255,0.2)' }}>
-          <SwapVert sx={{ fontSize: 15, color: 'rgba(255,255,255,0.7)', flexShrink: 0 }} />
-          <Select
-            value={sort}
-            onChange={e => setSort(e.target.value)}
+        <Tooltip title="Sort">
+          <IconButton
             size="small"
-            variant="standard"
-            disableUnderline
+            onClick={e => setSortAnchor(e.currentTarget)}
             sx={{
-              color: '#fff', fontSize: '0.75rem', minWidth: 110,
-              '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.7)', fontSize: 18 },
-              '& .MuiSelect-select': { py: 0, pr: '20px !important', background: 'none' },
+              width: 32, height: 32, borderRadius: '8px',
+              color: sort !== 'createdAt_desc' ? Colors.gold : 'rgba(255,255,255,0.75)',
+              bgcolor: sortAnchor ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)',
+              border: `1px solid ${sort !== 'createdAt_desc' ? Colors.gold + '60' : 'rgba(255,255,255,0.2)'}`,
+              transition: 'all 0.15s',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.35)' },
             }}
           >
-            {SORT_OPTIONS.map(o => <MenuItem key={o.val} value={o.val} sx={{ fontSize: '0.8125rem' }}>{o.label}</MenuItem>)}
-          </Select>
-        </Box>
+            <SwapVert sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+        <Menu
+          anchorEl={sortAnchor}
+          open={Boolean(sortAnchor)}
+          onClose={() => setSortAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          PaperProps={{
+            elevation: 0,
+            sx: {
+              mt: 0.75,
+              minWidth: 210,
+              border: `1px solid ${Colors.border}`,
+              borderRadius: '12px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
+              '& .MuiList-root': { py: 0.75 },
+            },
+          }}
+        >
+          <Typography sx={{ px: 2, pt: 1, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', fontFamily: '"JetBrains Mono", monospace' }}>
+            SORT BY
+          </Typography>
+          {SORT_OPTIONS.map(o => (
+            <MenuItem
+              key={o.val}
+              onClick={() => { setSort(o.val); setSortAnchor(null); }}
+              sx={{
+                mx: 0.75, borderRadius: '8px',
+                py: 0.875, px: 1.5,
+                fontSize: '0.8125rem',
+                fontWeight: sort === o.val ? 700 : 400,
+                color: sort === o.val ? Colors.navy : Colors.textPrimary,
+                bgcolor: sort === o.val ? Colors.gold + '15' : 'transparent',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                transition: 'all 0.1s',
+                '&:hover': { bgcolor: sort === o.val ? Colors.gold + '25' : Colors.bg },
+              }}
+            >
+              {o.label}
+              {sort === o.val && (
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: Colors.gold, ml: 1, flexShrink: 0 }} />
+              )}
+            </MenuItem>
+          ))}
+        </Menu>
       </Box>
 
       {/* Search row */}
@@ -378,6 +435,7 @@ export default function Queue() {
                 onSetLightbox={setLightboxUrl}
                 onViewThread={(id, clientCode, clientName) => navigate(`/client/${clientCode}?conversationId=${id}&clientName=${encodeURIComponent(clientName || '')}`)}
                 onRegenSingle={(convId) => { setPendingRegenConvId(convId); setShowRegenSingle(true); }}
+                onOpenInternalTray={(item) => setInternalTrayItem(item)}
                 onEditAmount={(id, idx) => { setEditingAmount({ id, idx }); setDraftAmount(''); }}
                 onCancelAmount={() => { setEditingAmount(null); setDraftAmount(''); }}
                 onDraftAmountChange={setDraftAmount}
@@ -456,6 +514,67 @@ export default function Queue() {
         </Box>
       )}
 
+      {/* Internal Communication Tray */}
+      <Drawer
+        anchor="right"
+        open={Boolean(internalTrayItem)}
+        onClose={() => setInternalTrayItem(null)}
+        PaperProps={{ sx: { width: 360, display: 'flex', flexDirection: 'column', bgcolor: Colors.bg } }}
+      >
+        {internalTrayItem && (
+          <>
+            <Box sx={{ bgcolor: Colors.navy, px: 2.5, py: 2, display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+              <ForumOutlined sx={{ color: Colors.gold, fontSize: 20 }} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ color: Colors.gold, fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.2em', fontFamily: '"JetBrains Mono", monospace' }}>
+                  INTERNAL COMMS
+                </Typography>
+                <Typography sx={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 500, fontFamily: '"Fraunces", Georgia, serif', lineHeight: 1.2 }} noWrap>
+                  {internalTrayItem.clientName || internalTrayItem.clientCode}
+                </Typography>
+              </Box>
+              <IconButton size="small" onClick={() => setInternalTrayItem(null)} sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                <Close fontSize="small" />
+              </IconButton>
+            </Box>
+
+            <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+              {(!internalTrayItem.internalCommunication || internalTrayItem.internalCommunication.length === 0) ? (
+                <Box sx={{ textAlign: 'center', pt: 6 }}>
+                  <Typography sx={{ color: Colors.textMuted, fontSize: '0.875rem' }}>No internal messages</Typography>
+                </Box>
+              ) : (
+                internalTrayItem.internalCommunication.map((msg, i) => {
+                  const isSystem = msg.msgType === 'trigger' || msg.source === 'channel';
+                  return (
+                    <Box key={msg._id || i} sx={{ mb: 1.5 }}>
+                      <Box sx={{
+                        p: 1.5, borderRadius: '10px',
+                        bgcolor: isSystem ? Colors.navy + '08' : '#fff',
+                        border: `1px solid ${isSystem ? Colors.navy + '20' : Colors.border}`,
+                        borderLeft: `3px solid ${isSystem ? Colors.navy : Colors.gold}`,
+                      }}>
+                        <Typography sx={{ fontSize: '0.8125rem', color: Colors.textPrimary, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                          {renderBold(msg.text)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.5, mt: 0.4 }}>
+                        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 600, color: Colors.textMuted, fontFamily: '"JetBrains Mono", monospace' }}>
+                          {msg.sender}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.5625rem', color: Colors.textMuted, fontFamily: '"JetBrains Mono", monospace' }}>
+                          {relativeTime(msg.createdAt)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                })
+              )}
+            </Box>
+          </>
+        )}
+      </Drawer>
+
       <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack(s => ({ ...s, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))}>{snack.msg}</Alert>
       </Snackbar>
@@ -464,11 +583,11 @@ export default function Queue() {
 }
 
 function ApprovalCard({
-  item, canWrite, safeScroll, editingId, draftBody, editorReason, savingBodyId,
+  item, canWrite, editingId, draftBody, editorReason, savingBodyId,
   approvingId, rejectingId, editingAmount, draftAmount, savingAmountId, regeneratingConvId,
-  onStartEdit, onCancelEdit, onDraftChange, onReasonChange, onSaveBody, onSaveAndSend,
+  onStartEdit, onCancelEdit, onDraftChange, onReasonChange, onSaveAndSend,
   onApprove, onReject, onSetLightbox, onViewThread, onRegenSingle,
-  onEditAmount, onCancelAmount, onDraftAmountChange, onSaveAmount,
+  onEditAmount, onCancelAmount, onDraftAmountChange, onSaveAmount, onOpenInternalTray,
 }) {
   const isEditing = editingId === item._id;
 
@@ -483,7 +602,12 @@ function ApprovalCard({
             <Typography sx={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '0.9375rem', fontWeight: 500, color: Colors.navy, letterSpacing: '-0.2px', lineHeight: 1.3 }} noWrap>
               {item.clientName || item.clientCode || 'Client'}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 0.75, mt: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            {(item.clientWaName || item.customerNumber) && (
+              <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.5rem', color: Colors.textMuted, letterSpacing: '0.04em', mb: 0.25 }} noWrap>
+                {item.clientWaName && item.clientWaName !== item.clientName ? item.clientWaName : ''}{item.customerNumber ? (item.clientWaName && item.clientWaName !== item.clientName ? ' · ' : '') + item.customerNumber : ''}
+              </Typography>
+            )}
+            <Box sx={{ display: 'flex', gap: 0.75, mt: 0.25, flexWrap: 'wrap', alignItems: 'center' }}>
               <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.5625rem', color: Colors.textMuted, letterSpacing: '0.05em' }}>
                 {item.triggerType?.toUpperCase() || 'MESSAGE'}
               </Typography>
@@ -511,8 +635,17 @@ function ApprovalCard({
           <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end', mt: 0.75 }}>
             <Button size="small" onClick={() => onViewThread(item._id, item.clientCode, item.clientName)}
               sx={{ height: 22, fontSize: '0.5625rem', fontWeight: 700, color: Colors.gold, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.04em', p: '2px 8px', minWidth: 0, border: `1px solid ${Colors.gold}50`, borderRadius: '6px' }}>
-              THREAD →
+              View Thread
             </Button>
+            {item.internalCommunication?.length > 0 && (
+              <Tooltip title="Internal comms">
+                <IconButton size="small"
+                  onClick={() => onOpenInternalTray(item)}
+                  sx={{ border: `1px solid rgba(0,0,0,0.25)`, borderRadius: '6px', p: '2px', width: 26, height: 26, bgcolor: 'rgba(0,0,0,0.06)', '&:hover': { bgcolor: 'rgba(0,0,0,0.12)' } }}>
+                  <ForumOutlined sx={{ fontSize: 13, color: Colors.textPrimary }} />
+                </IconButton>
+              </Tooltip>
+            )}
             {item.metadata?.templateName && (
               regeneratingConvId === item._id
                 ? <CircularProgress size={14} sx={{ color: Colors.gold }} />
@@ -595,15 +728,15 @@ function ApprovalCard({
       {canWrite && (
         <Box>
           {isEditing ? (
-            <Stack gap={1}>
+            <Stack gap={2}>
               <TextField fullWidth size="small" placeholder="Reason for edit (optional)"
                 value={editorReason} onChange={e => onReasonChange(e.target.value)}
                 sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#fff', fontSize: '0.8125rem' } }} />
-              <Box sx={{ display: 'flex', gap: '6px' }}>
+              <Box sx={{ display: 'flex', gap: '6px', pt: 1, borderTop: `1px solid ${Colors.border}` }}>
                 <Button fullWidth variant="outlined" onClick={onCancelEdit}
-                  sx={{ flex: 1, borderColor: Colors.border, color: Colors.textSecondary, fontSize: '0.75rem', fontWeight: 600 }}>Cancel</Button>
+                  sx={{ flex: 1, py: 1, borderColor: Colors.border, color: Colors.textSecondary, fontSize: '0.75rem', fontWeight: 600 }}>Cancel</Button>
                 <Button fullWidth variant="contained" onClick={() => onSaveAndSend(item._id)} disabled={savingBodyId === item._id}
-                  sx={{ flex: 2, bgcolor: Colors.gold, '&:hover': { bgcolor: Colors.goldLight }, fontSize: '0.75rem', fontWeight: 700 }}>
+                  sx={{ flex: 1, py: 1, bgcolor: Colors.gold, '&:hover': { bgcolor: Colors.goldLight }, fontSize: '0.75rem', fontWeight: 700 }}>
                   {savingBodyId === item._id ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : 'Save & Send'}
                 </Button>
               </Box>

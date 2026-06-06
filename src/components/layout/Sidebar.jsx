@@ -1,11 +1,11 @@
 import {
-  AccessTime,
+  // BarChart,
   ChatBubbleOutlined,
   CheckCircleOutlined,
   ErrorOutlined,
   Groups,
   Logout,
-  MenuBook,
+  // MenuBook,
   MoreHoriz,
   SwapHoriz,
   Timer,
@@ -35,11 +35,11 @@ const NAV_ITEMS = [
   { label: 'Queue', path: '/queue', icon: <Timer />, subMenu: 'Home' },
   { label: 'Clients', path: '/clients', icon: <Groups />, subMenu: 'Client' },
   { label: 'Promises', path: '/promises', icon: <CheckCircleOutlined />, subMenu: 'Promise' },
-  { label: 'Disputes', path: '/disputes', icon: <ErrorOutlined />, subMenu: 'dispute' },
+  { label: 'Disputes', path: '/disputes', icon: <ErrorOutlined />, subMenu: null },
   { label: 'Unfix', path: '/unfix', icon: <SwapHoriz />, subMenu: 'Unfix' },
-  { label: 'Brain', path: '/brain', icon: <MenuBook />, subMenu: 'Brain' },
+  // { label: 'Brain', path: '/brain', icon: <MenuBook />, subMenu: 'Brain' },
   { label: 'Chat', path: '/chat', icon: <ChatBubbleOutlined />, subMenu: 'Chat' },
-  { label: 'Held', path: '/held', icon: <AccessTime />, subMenu: 'Approval' },
+  // { label: 'Report', path: '/report', icon: <BarChart />, subMenu: null },
   { label: 'Settings', path: '/settings', icon: <MoreHoriz />, subMenu: null },
 ];
 

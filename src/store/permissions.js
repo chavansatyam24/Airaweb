@@ -10,7 +10,7 @@ function getSubRight(data, subMenu) {
   return undefined;
 }
 
-export const usePermissionsStore = create((set, get) => ({
+export const usePermissionsStore = create((set) => ({
   data: null,
   isLoading: false,
   ready: false,
@@ -33,6 +33,7 @@ export const usePermissionsLoading = () => usePermissionsStore(s => s.isLoading)
 
 export const useHasAppAccess = () =>
   usePermissionsStore(s => {
+    if (!s.ready) return false;
     if (!s.data) return true;
     if (s.data.isAdmin) return true;
     const sub = getSubRight(s.data, 'Aira App Access');
@@ -41,7 +42,8 @@ export const useHasAppAccess = () =>
 
 export const useCanAccess = (subMenu) =>
   usePermissionsStore(s => {
-    if (!s.data) return true;
+    if (!s.ready) return false;  // still loading — hide until known
+    if (!s.data) return true;    // fetch failed — allow (graceful degradation)
     if (s.data.isAdmin) return true;
     const sub = getSubRight(s.data, subMenu);
     return sub?.enabled ?? false;
@@ -49,6 +51,7 @@ export const useCanAccess = (subMenu) =>
 
 export const useHasPermission = (subMenu, key) =>
   usePermissionsStore(s => {
+    if (!s.ready) return false;
     if (!s.data) return true;
     if (s.data.isAdmin) return true;
     const sub = getSubRight(s.data, subMenu);

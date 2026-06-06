@@ -1,14 +1,19 @@
 import {
+  BarChart,
   ChatBubbleOutlined,
   ChevronRight,
-  ColorLens,
   Logout,
+  MenuBook,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
 import {
   Alert,
   Box,
+  Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
   Divider,
   Paper,
   Snackbar,
@@ -19,9 +24,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../../api/index';
-import { useAuth } from '../../store/auth';
-import { useIsAdmin } from '../../store/auth';
+import { useAuth, useIsAdmin } from '../../store/auth';
 import { Colors } from '../../theme/index';
+
+const APP_VERSION = '2.0.0';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -30,6 +36,7 @@ export default function Settings() {
   const isAdmin = useIsAdmin();
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'success' });
   const [togglingApproval, setTogglingApproval] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const configQ = useQuery({
     queryKey: ['admin-config'],
@@ -40,6 +47,7 @@ export default function Settings() {
   const approvalEnabled = configQ.data?.approvalMode?.enabled ?? true;
 
   const handleLogout = async () => {
+    setShowLogoutConfirm(false);
     await logout();
     navigate('/login');
   };
@@ -106,16 +114,18 @@ export default function Settings() {
         {/* Features */}
         <Paper elevation={0} sx={{ mx: 2, mb: 2, border: `1px solid ${Colors.border}`, borderRadius: 2, overflow: 'hidden' }}>
           <Typography sx={{ px: 2, pt: 1.5, pb: 0.5, fontSize: '0.5625rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.12em', fontFamily: '"JetBrains Mono", monospace' }}>FEATURES</Typography>
-          <MenuItem icon={<ChatBubbleOutlined sx={{ color: Colors.navy, fontSize: 18 }} />} label="Chat with Pooja" sublabel="Train Aira's knowledge" onClick={() => navigate('/chat')} />
+          <MenuItem icon={<ChatBubbleOutlined sx={{ color: Colors.navy, fontSize: 18 }} />} label="Chat with Pooja" sublabel="Train her directly" onClick={() => navigate('/chat')} />
           <Divider sx={{ ml: 7 }} />
-          <MenuItem icon={<ColorLens sx={{ color: Colors.navy, fontSize: 18 }} />} label="Style Review" sublabel="Review and approve patterns" onClick={() => navigate('/style-review')} />
+          <MenuItem icon={<MenuBook sx={{ color: Colors.navy, fontSize: 18 }} />} label="Brain" sublabel="Lessons . Rules . Knowledge . Stats" onClick={() => navigate('/brain')} />
+          <Divider sx={{ ml: 7 }} />
+          {/* <MenuItem icon={<BarChart sx={{ color: Colors.navy, fontSize: 18 }} />} label="Daily Report" sublabel="Financial KPIs and client overdue" onClick={() => navigate('/report')} /> */}
         </Paper>
 
         {/* Admin */}
         {isAdmin && (
           <Paper elevation={0} sx={{ mx: 2, mb: 2, border: `1px solid ${Colors.border}`, borderRadius: 2, overflow: 'hidden' }}>
-            <Typography sx={{ px: 2, pt: 1.5, pb: 0.5, fontSize: '0.5625rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.12em', fontFamily: '"JetBrains Mono", monospace' }}>ADMIN</Typography>
-            <MenuItem
+            {/* <Typography sx={{ px: 2, pt: 1.5, pb: 0.5, fontSize: '0.5625rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.12em', fontFamily: '"JetBrains Mono", monospace' }}>ADMIN</Typography> */}
+            {/* <MenuItem
               icon={<SettingsIcon sx={{ color: Colors.navy, fontSize: 18 }} />}
               label="Approval Mode"
               sublabel={approvalEnabled ? 'Messages require approval' : 'Auto-send enabled'}
@@ -131,14 +141,14 @@ export default function Settings() {
                   />
                 )
               }
-            />
+            /> */}
           </Paper>
         )}
 
         {/* Logout */}
         <Paper elevation={0} sx={{ mx: 2, mb: 2, border: `1px solid ${Colors.border}`, borderRadius: 2, overflow: 'hidden' }}>
           <Box
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, cursor: 'pointer', gap: 1.5, '&:hover': { bgcolor: Colors.danger + '08' } }}
           >
             <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: Colors.danger + '12', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -149,9 +159,26 @@ export default function Settings() {
         </Paper>
 
         <Typography sx={{ textAlign: 'center', color: Colors.textMuted, fontSize: '0.6875rem', pb: 3 }}>
-          Aira · Binny's Jewellery · Internal
+          Aira · Binny's Jewellery · v{APP_VERSION}
         </Typography>
       </Box>
+
+      {/* Logout confirmation */}
+      <Dialog open={showLogoutConfirm} onClose={() => setShowLogoutConfirm(false)} maxWidth="xs" fullWidth>
+        <DialogContent sx={{ pt: 3, pb: 1 }}>
+          <Typography variant="h3" sx={{ mb: 1 }}>Sign out?</Typography>
+          <Typography sx={{ color: Colors.textSecondary, fontSize: '0.875rem' }}>
+            You will need to log in again to access Aira.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button fullWidth variant="outlined" onClick={() => setShowLogoutConfirm(false)}>Cancel</Button>
+          <Button fullWidth variant="contained" onClick={handleLogout}
+            sx={{ bgcolor: Colors.danger, '&:hover': { bgcolor: Colors.danger + 'dd' } }}>
+            Sign Out
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={snack.open} autoHideDuration={3000} onClose={() => setSnack(s => ({ ...s, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))}>{snack.msg}</Alert>

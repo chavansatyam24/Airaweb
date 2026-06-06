@@ -2,7 +2,7 @@ import { ChevronRight } from '@mui/icons-material';
 import {
   Box,
   CircularProgress,
-  Paper,
+  Divider,
   Tab,
   Tabs,
   Typography,
@@ -15,12 +15,12 @@ import { promiseApi } from '../../api/index';
 import { Colors } from '../../theme/index';
 
 const TAB_META = [
-  { k: 'active', label: 'Active', color: Colors.warning },
-  { k: 'honoured', label: 'Honoured', color: Colors.success },
-  { k: 'broken', label: 'Broken', color: Colors.danger },
+  { k: 'active',   label: 'Active',    color: Colors.warning },
+  { k: 'honoured', label: 'Honoured',  color: Colors.success },
+  { k: 'broken',   label: 'Broken',    color: Colors.danger  },
 ];
 
-const MONO = '"JetBrains Mono", monospace';
+const MONO  = '"JetBrains Mono", monospace';
 const SERIF = '"Fraunces", Georgia, serif';
 
 export default function Promises() {
@@ -28,15 +28,18 @@ export default function Promises() {
   const [tab, setTab] = useState('active');
 
   const statsQ = useQuery({ queryKey: ['promises', 'stats'], queryFn: () => promiseApi.stats() });
-  const clientsQ = useQuery({ queryKey: ['promises', 'clients', tab], queryFn: () => promiseApi.clients({ status: tab }) });
+  const clientsQ = useQuery({
+    queryKey: ['promises', 'clients', tab],
+    queryFn: () => promiseApi.clients({ status: tab }),
+  });
 
   const stats = statsQ.data;
-  const clients = clientsQ.data?.clients ?? [];
+  const clients = clientsQ.data?.clients ?? clientsQ.data?.items ?? clientsQ.data ?? [];
   const loading = clientsQ.isPending;
 
   const tabsWithCounts = TAB_META.map(t => ({
     ...t,
-    count: t.k === 'active' ? stats?.active ?? 0 : t.k === 'honoured' ? stats?.honoured ?? 0 : stats?.broken ?? 0,
+    count: stats?.[t.k] ?? 0,
   }));
 
   return (
@@ -44,7 +47,7 @@ export default function Promises() {
       {/* Header */}
       <Box sx={{ bgcolor: Colors.navy, px: 3, py: 1.5, flexShrink: 0 }}>
         <Typography sx={{ color: Colors.gold, fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.2em', fontFamily: MONO, mb: 0.25 }}>
-          {stats != null ? `${stats.total} COMMITMENTS` : 'PROMISE BOARD'}
+          {stats != null ? `${stats.total ?? ((stats.active ?? 0) + (stats.honoured ?? 0) + (stats.broken ?? 0))} COMMITMENTS` : 'PROMISE BOARD'}
         </Typography>
         <Typography sx={{ color: '#fff', fontSize: '1.375rem', fontWeight: 400, fontFamily: SERIF, letterSpacing: '-0.3px', lineHeight: 1.1 }}>
           Promises
@@ -57,14 +60,7 @@ export default function Promises() {
           value={tab}
           onChange={(_, v) => setTab(v)}
           sx={{
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontFamily: MONO,
-              fontWeight: 600,
-              fontSize: '0.6875rem',
-              letterSpacing: '0.06em',
-              minHeight: 44,
-            },
+            '& .MuiTab-root': { textTransform: 'none', fontFamily: MONO, fontWeight: 600, fontSize: '0.6875rem', letterSpacing: '0.06em', minHeight: 44 },
             '& .MuiTabs-indicator': { bgcolor: Colors.gold },
           }}
         >
@@ -81,57 +77,55 @@ export default function Promises() {
         </Tabs>
       </Box>
 
-      {/* List */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 2, bgcolor: Colors.bg }}>
+      {/* Client list */}
+      <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: '#fff' }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}><CircularProgress sx={{ color: Colors.gold }} /></Box>
         ) : clients.length === 0 ? (
           <Box sx={{ textAlign: 'center', pt: 10 }}>
-            <Typography sx={{ color: Colors.textMuted, fontFamily: SERIF, fontSize: '1rem' }}>No {tab} promises</Typography>
+            <Typography sx={{ color: Colors.textMuted, fontFamily: SERIF, fontSize: '1rem' }}>No clients with {tab} promises</Typography>
           </Box>
         ) : (
-          clients.map(c => (
-            <Paper
-              key={c.clientCode}
-              onClick={() => navigate(`/promises/${c.clientCode}?status=${tab}`)}
-              elevation={0}
-              sx={{
-                display: 'flex', alignItems: 'center',
-                px: 2, py: 1.5, mb: 1, cursor: 'pointer',
-                border: `1px solid ${Colors.border}`,
-                borderRadius: '10px',
-                bgcolor: '#fff',
-                gap: 1.5,
-                '&:hover': { bgcolor: Colors.bg },
-              }}
-            >
-              <TierBadge tier={c.clientTier} size={26} />
-
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 400, fontFamily: SERIF, color: Colors.navy, lineHeight: 1.2 }} noWrap>
-                  {c.clientName}
-                </Typography>
-                {c.phone && (
-                  <Typography sx={{ fontSize: '0.6875rem', color: Colors.textMuted, fontFamily: MONO, mt: 0.25 }}>
-                    +{c.phone}
-                  </Typography>
-                )}
-              </Box>
-
-              <Box sx={{
-                bgcolor: Colors.gold + '15',
-                borderRadius: '99px',
-                px: '10px', py: '4px',
-                border: `1px solid ${Colors.gold}40`,
-                flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: Colors.gold, fontFamily: MONO }}>{c.promiseCount}</Typography>
-              </Box>
-
-              <ChevronRight sx={{ fontSize: 16, color: Colors.textMuted, flexShrink: 0 }} />
-            </Paper>
-          ))
+          <>
+            {clients.map((c, idx) => {
+              const name = c.clientName || c.name || c.clientCode;
+              const code = c.clientCode || c._id;
+              const count = c.promiseCount ?? c.count ?? 0;
+              const tier = c.clientTier || c.tier;
+              return (
+                <Box key={code || idx}>
+                  <Box
+                    onClick={() => navigate(`/promises/${code}?status=${tab}`)}
+                    sx={{
+                      display: 'flex', alignItems: 'center', gap: 1.5,
+                      px: 2, py: 1.5, cursor: 'pointer',
+                      transition: 'background 0.1s',
+                      '&:hover': { bgcolor: Colors.bg },
+                    }}
+                  >
+                    <TierBadge tier={tier} size={26} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 500, fontFamily: SERIF, color: Colors.navy }} noWrap>
+                        {name}
+                      </Typography>
+                      {c.latestPromiseText && (
+                        <Typography sx={{ fontSize: '0.6875rem', color: Colors.textMuted, mt: 0.125 }} noWrap>
+                          {c.latestPromiseText}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ px: '10px', py: '3px', borderRadius: '99px', bgcolor: Colors.warning + '18', border: `1px solid ${Colors.warning}40`, flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: Colors.warning, fontFamily: MONO }}>
+                        {count} promise{count !== 1 ? 's' : ''}
+                      </Typography>
+                    </Box>
+                    <ChevronRight sx={{ fontSize: 18, color: Colors.textMuted, flexShrink: 0 }} />
+                  </Box>
+                  {idx < clients.length - 1 && <Divider sx={{ ml: 7 }} />}
+                </Box>
+              );
+            })}
+          </>
         )}
       </Box>
     </Box>

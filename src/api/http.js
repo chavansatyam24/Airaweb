@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const IS_LIVE = false;
-export const BASE_URL = IS_LIVE ? 'https://pooja.binnysjewellery.in' : 'http://192.168.2.117:8000';
+export const BASE_URL = IS_LIVE ? 'https://pooja.binnysjewellery.in' : 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: BASE_URL,

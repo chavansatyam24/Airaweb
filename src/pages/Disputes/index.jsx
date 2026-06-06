@@ -175,9 +175,16 @@ export default function Disputes() {
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.25 }}>
                       {tier && <TierBadge tier={tier} size={22} />}
-                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 400, fontFamily: SERIF, color: Colors.navy, lineHeight: 1.2 }}>
-                        {clientLabel(d)}
-                      </Typography>
+                        <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 400, fontFamily: SERIF, color: Colors.navy, lineHeight: 1.2 }}>
+                          {clientLabel(d)}
+                        </Typography>
+                        {(d.clientWaName || d.customerNumber) && (
+                          <Typography sx={{ fontSize: '0.5625rem', color: Colors.textMuted, fontFamily: MONO, letterSpacing: '0.04em' }}>
+                            {d.clientWaName && d.clientWaName !== clientLabel(d) ? d.clientWaName : ''}{d.customerNumber ? (d.clientWaName && d.clientWaName !== clientLabel(d) ? ' · ' : '') + d.customerNumber : ''}
+                          </Typography>
+                        )}
+                      </Box>
                       {slaBreached && (
                         <Box sx={{
                           bgcolor: Colors.danger + '15',
@@ -249,18 +256,18 @@ export default function Disputes() {
                 <Box sx={{ px: 2, pb: 1.75, display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   <Button size="small" variant="outlined" disabled={!routeId}
                     onClick={() => routeId && navigate(`/client/${routeId}?conversationId=${d.sourceConversationId || ''}&clientName=${encodeURIComponent(clientLabel(d))}`)}
-                    sx={{ flex: 1, minWidth: 70, fontSize: '0.6875rem', fontFamily: MONO, borderColor: Colors.border, color: Colors.navy, borderRadius: '8px' }}>
+                    sx={{ flex: 1, minWidth: 70, py: 1, fontSize: '0.6875rem', fontFamily: MONO, borderColor: Colors.border, color: Colors.navy, borderRadius: '8px' }}>
                     THREAD
                   </Button>
 
                   {d.status === 'raised' && (
                     <>
                       <Button size="small" variant="contained" onClick={() => transition(d._id, 'rejected', 'rejected')} disabled={resolvingId === d._id}
-                        sx={{ flex: 1, minWidth: 70, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.danger + '15', color: Colors.danger, border: `1px solid ${Colors.danger}40`, boxShadow: 'none', borderRadius: '8px', '&:hover': { bgcolor: Colors.danger + '25' } }}>
+                        sx={{ flex: 1, minWidth: 70, py: 1, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.danger + '15', color: Colors.danger, border: `1px solid ${Colors.danger}40`, boxShadow: 'none', borderRadius: '8px', '&:hover': { bgcolor: Colors.danger + '25' } }}>
                         REJECT
                       </Button>
                       <Button size="small" variant="contained" onClick={() => transition(d._id, 'investigating')} disabled={resolvingId === d._id}
-                        sx={{ flex: 2, minWidth: 90, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.info, borderRadius: '8px', '&:hover': { bgcolor: Colors.info + 'dd' } }}>
+                        sx={{ flex: 1, minWidth: 70, py: 1, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.info, borderRadius: '8px', '&:hover': { bgcolor: Colors.info + 'dd' } }}>
                         {resolvingId === d._id ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'INVESTIGATE'}
                       </Button>
                     </>
@@ -268,7 +275,7 @@ export default function Disputes() {
 
                   {d.status === 'investigating' && (
                     <Button size="small" variant="contained" onClick={() => transition(d._id, 'resolved', 'resolved')} disabled={resolvingId === d._id}
-                      sx={{ flex: 2, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.success, borderRadius: '8px', '&:hover': { bgcolor: Colors.success + 'dd' } }}>
+                      sx={{ flex: 1, py: 1, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.success, borderRadius: '8px', '&:hover': { bgcolor: Colors.success + 'dd' } }}>
                       {resolvingId === d._id ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'RESOLVE'}
                     </Button>
                   )}
@@ -276,11 +283,11 @@ export default function Disputes() {
                   {d.status === 'awaiting_client' && (
                     <>
                       <Button size="small" variant="contained" onClick={() => transition(d._id, 'investigating')} disabled={resolvingId === d._id}
-                        sx={{ flex: 1, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.info, borderRadius: '8px' }}>
+                        sx={{ flex: 1, py: 1, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.info, borderRadius: '8px' }}>
                         REOPEN
                       </Button>
                       <Button size="small" variant="contained" onClick={() => transition(d._id, 'resolved', 'resolved')} disabled={resolvingId === d._id}
-                        sx={{ flex: 2, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.success, borderRadius: '8px' }}>
+                        sx={{ flex: 1, py: 1, fontSize: '0.6875rem', fontFamily: MONO, bgcolor: Colors.success, borderRadius: '8px' }}>
                         {resolvingId === d._id ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'RESOLVE'}
                       </Button>
                     </>

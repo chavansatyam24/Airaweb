@@ -1,11 +1,10 @@
-import { ArrowBack, Close } from '@mui/icons-material';
+import { ArrowBack } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
   Chip,
   CircularProgress,
-  Divider,
   IconButton,
   Paper,
   Snackbar,
@@ -101,29 +100,51 @@ export default function Settlement() {
     ? Math.round((item.rateProposals[item.rateProposals.length - 1].ratePer10g + item.rateProposals[item.rateProposals.length - 2].ratePer10g) / 2)
     : null;
 
+  const clientCode = item.clientId?.clientCode || item.clientCode;
+  const clientName = item.clientId?.name || 'Client';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <Box sx={{ bgcolor: Colors.navy, px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
         <IconButton size="small" sx={{ color: '#fff' }} onClick={() => navigate(-1)}><ArrowBack fontSize="small" /></IconButton>
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ color: '#fff', fontSize: '1.125rem', fontWeight: 700 }}>
-            {item.clientId?.name || 'Settlement'}
+            {clientName}
           </Typography>
           <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}>
             {item.totalGrams}g · {item.invoiceNumbers?.join(', ')}
           </Typography>
         </Box>
+        {/* View Thread */}
+        {clientCode && (
+          <Button
+            size="small"
+            onClick={() => navigate(`/client/${clientCode}?clientName=${encodeURIComponent(clientName)}`)}
+            sx={{ color: Colors.gold, fontSize: '0.5625rem', fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', border: `1px solid ${Colors.gold}50`, borderRadius: '6px', px: 1, height: 24, flexShrink: 0 }}
+          >
+            THREAD →
+          </Button>
+        )}
         {item.needsCEOApproval && (
           <Chip label="CEO APPROVAL" size="small" sx={{ bgcolor: Colors.danger + '20', color: Colors.danger, fontWeight: 700, border: `1px solid ${Colors.danger}50` }} />
         )}
       </Box>
+
+      {/* Alert reason banner */}
+      {item.alertReason && (
+        <Box sx={{ bgcolor: Colors.warning + '18', borderBottom: `1px solid ${Colors.warning}30`, px: 2, py: 0.75, display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+          <Typography sx={{ fontSize: '0.75rem', color: Colors.warning, fontWeight: 600, flex: 1 }}>
+            ⚠ {item.alertReason}
+          </Typography>
+        </Box>
+      )}
 
       <Box sx={{ flex: 1, overflowY: 'auto', p: 2, bgcolor: Colors.bg }}>
         {/* Overview card */}
         <Paper elevation={0} sx={{ mb: 2, p: 2, border: `1px solid ${Colors.border}`, borderRadius: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
             <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: Colors.navy }}>
-              {item.clientId?.name || 'Client'}
+              {clientName}
             </Typography>
             {item.clientTier && <TierBadge tier={item.clientTier} />}
           </Box>
@@ -132,6 +153,7 @@ export default function Settlement() {
               { label: 'TOTAL GOLD', value: `${item.totalGrams}g` },
               { label: 'BILLING RATE', value: `₹${formatINR(item.billingDateRate)}/10g` },
               { label: 'BILLING AMT', value: `₹${formatINR(item.billingDateAmount)}` },
+              item.billedReference && { label: 'BILLED REF', value: item.billedReference },
               item.finalRatePer10g && { label: 'FINAL RATE', value: `₹${formatINR(item.finalRatePer10g)}/10g`, color: Colors.success },
               item.finalAmount && { label: 'FINAL AMT', value: `₹${formatINR(item.finalAmount)}`, color: Colors.success },
             ].filter(Boolean).map(m => (
@@ -178,8 +200,7 @@ export default function Settlement() {
             </Typography>
             <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
               <TextField
-                size="small"
-                type="number"
+                size="small" type="number"
                 placeholder="Final rate per 10g"
                 value={finalRate}
                 onChange={e => setFinalRate(e.target.value)}
