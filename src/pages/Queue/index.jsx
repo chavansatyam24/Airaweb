@@ -10,7 +10,9 @@ import {
   Lock,
   LockOpen,
   Refresh,
+  Reply,
   Search,
+  Send,
   SwapVert,
   Timer,
 } from '@mui/icons-material';
@@ -45,6 +47,8 @@ import { useAuth, useCanWrite } from '../../store/auth';
 import { relativeTime } from '../../utils/format';
 import { Colors } from '../../theme/index';
 
+const MONO = '"JetBrains Mono", monospace';
+
 const renderBold = (text) => {
   if (!text) return null;
   const parts = text.split(/\*([^*]+)\*/g);
@@ -54,12 +58,12 @@ const renderBold = (text) => {
 };
 
 const SORT_OPTIONS = [
-  { val: 'createdAt_desc', label: 'Newest first' },
-  { val: 'createdAt_asc', label: 'Oldest first' },
-  { val: 'balance_desc', label: 'Balance: High → Low' },
-  { val: 'balance_asc', label: 'Balance: Low → High' },
-  { val: 'gold_desc', label: 'Gold: High → Low' },
-  { val: 'gold_asc', label: 'Gold: Low → High' },
+  { val: 'createdAt_desc', label: 'Created At (Newest first)', sub: 'Latest messages on top' },
+  { val: 'createdAt_asc',  label: 'Created At (Oldest first)', sub: 'Oldest messages on top' },
+  { val: 'balance_desc',   label: 'Balance (High to Low)',     sub: 'Highest overdue first' },
+  { val: 'balance_asc',    label: 'Balance (Low to High)',     sub: 'Lowest overdue first' },
+  { val: 'gold_desc',      label: 'Gold (High to Low)',        sub: 'Highest weight first' },
+  { val: 'gold_asc',       label: 'Gold (Low to High)',        sub: 'Lowest weight first' },
 ];
 
 export default function Queue() {
@@ -269,18 +273,20 @@ export default function Queue() {
       {/* Header */}
       <Box sx={{ bgcolor: Colors.navy, px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ color: Colors.gold, fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.2em', fontFamily: '"JetBrains Mono", monospace', mb: 0.25 }}>
+          <Typography sx={{ color: Colors.gold, fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.2em', fontFamily: MONO, mb: 0.25 }}>
             {total} PENDING MESSAGES
           </Typography>
           <Typography sx={{ color: '#fff', fontSize: '1.375rem', fontWeight: 400, fontFamily: '"Fraunces", Georgia, serif', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
             Approval Queue
           </Typography>
         </Box>
-        {/* <Tooltip title={safeScroll ? 'Unlock auto-scroll' : 'Lock scroll position'}>
+        {/* Lock button disabled
+        <Tooltip title={safeScroll ? 'Unlock actions' : 'Lock scroll (hide actions)'}>
           <IconButton size="small" sx={{ color: safeScroll ? Colors.gold : 'rgba(255,255,255,0.6)' }} onClick={() => setSafeScroll(v => !v)}>
             {safeScroll ? <Lock fontSize="small" /> : <LockOpen fontSize="small" />}
           </IconButton>
-        </Tooltip> */}
+        </Tooltip>
+        */}
         <Tooltip title="Held messages">
           <IconButton size="small" sx={{ color: '#fff' }} onClick={() => navigate('/held')}>
             <Timer fontSize="small" />
@@ -316,17 +322,16 @@ export default function Queue() {
           PaperProps={{
             elevation: 0,
             sx: {
-              mt: 0.75,
-              minWidth: 210,
+              mt: 0.75, minWidth: 240,
               border: `1px solid ${Colors.border}`,
-              borderRadius: '12px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              borderRadius: '14px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
               overflow: 'hidden',
               '& .MuiList-root': { py: 0.75 },
             },
           }}
         >
-          <Typography sx={{ px: 2, pt: 1, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', fontFamily: '"JetBrains Mono", monospace' }}>
+          <Typography sx={{ px: 2, pt: 1.25, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.2em', fontFamily: MONO }}>
             SORT BY
           </Typography>
           {SORT_OPTIONS.map(o => (
@@ -335,20 +340,20 @@ export default function Queue() {
               onClick={() => { setSort(o.val); setSortAnchor(null); }}
               sx={{
                 mx: 0.75, borderRadius: '8px',
-                py: 0.875, px: 1.5,
-                fontSize: '0.8125rem',
-                fontWeight: sort === o.val ? 700 : 400,
-                color: sort === o.val ? Colors.navy : Colors.textPrimary,
-                bgcolor: sort === o.val ? Colors.gold + '15' : 'transparent',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                py: 1, px: 1.5,
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                bgcolor: sort === o.val ? Colors.gold + '12' : 'transparent',
                 transition: 'all 0.1s',
-                '&:hover': { bgcolor: sort === o.val ? Colors.gold + '25' : Colors.bg },
+                '&:hover': { bgcolor: sort === o.val ? Colors.gold + '20' : Colors.bg },
               }}
             >
-              {o.label}
-              {sort === o.val && (
-                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: Colors.gold, ml: 1, flexShrink: 0 }} />
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+                <Typography sx={{ flex: 1, fontSize: '0.8125rem', fontWeight: sort === o.val ? 700 : 500, color: sort === o.val ? Colors.navy : Colors.textPrimary }}>
+                  {o.label}
+                </Typography>
+                {sort === o.val && <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: Colors.gold, flexShrink: 0 }} />}
+              </Box>
+              <Typography sx={{ fontSize: '0.625rem', color: Colors.textMuted, mt: 0.15 }}>{o.sub}</Typography>
             </MenuItem>
           ))}
         </Menu>
@@ -395,7 +400,7 @@ export default function Queue() {
         </Box>
         {items.length > 0 && canWrite && (
           <Button size="small" variant="contained" onClick={() => setShowApproveAll(true)}
-            sx={{ bgcolor: Colors.navy, '&:hover': { bgcolor: Colors.navyAlt }, height: 28, fontSize: '0.6875rem', fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', borderRadius: '6px', flexShrink: 0 }}>
+            sx={{ bgcolor: Colors.navy, '&:hover': { bgcolor: Colors.navyAlt }, height: 28, fontSize: '0.6875rem', fontWeight: 700, fontFamily: MONO, borderRadius: '6px', flexShrink: 0 }}>
             Approve All · {items.length}
           </Button>
         )}
@@ -428,6 +433,7 @@ export default function Queue() {
                 item={item}
                 canWrite={canWrite}
                 safeScroll={safeScroll}
+                showEditOption={showEditOption}
                 expandedFieldsId={expandedFieldsId}
                 selectedFieldIdx={selectedFieldIdx}
                 editingId={editingId}
@@ -536,61 +542,81 @@ export default function Queue() {
         </Box>
       )}
 
-      {/* Internal Communication Tray */}
+      {/* Internal Communication / Dispute Tray */}
       <Drawer
-        anchor="right"
+        anchor="bottom"
         open={Boolean(internalTrayItem)}
         onClose={() => setInternalTrayItem(null)}
-        PaperProps={{ sx: { width: 360, display: 'flex', flexDirection: 'column', bgcolor: Colors.bg } }}
+        PaperProps={{ sx: { borderTopLeftRadius: '20px', borderTopRightRadius: '20px', height: '60vh', display: 'flex', flexDirection: 'column', bgcolor: Colors.bg } }}
       >
         {internalTrayItem && (
           <>
-            <Box sx={{ bgcolor: Colors.navy, px: 2.5, py: 2, display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
-              <ForumOutlined sx={{ color: Colors.gold, fontSize: 20 }} />
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ color: Colors.gold, fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.2em', fontFamily: '"JetBrains Mono", monospace' }}>
-                  INTERNAL COMMS
-                </Typography>
-                <Typography sx={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 500, fontFamily: '"Fraunces", Georgia, serif', lineHeight: 1.2 }} noWrap>
+            {/* Handle */}
+            <Box sx={{ width: 40, height: 4, borderRadius: '2px', bgcolor: Colors.border, mx: 'auto', mt: 1.5, mb: 0, flexShrink: 0 }} />
+            {/* Header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 1.5, flexShrink: 0 }}>
+              <ForumOutlined sx={{ color: Colors.navy, fontSize: 18 }} />
+              <Typography sx={{ flex: 1, fontSize: '0.9375rem', fontWeight: 700, color: Colors.navy, fontFamily: '"Fraunces", Georgia, serif' }}>
+                Internal Discussion
+              </Typography>
+              <Box sx={{ px: '10px', py: '4px', borderRadius: '99px', bgcolor: Colors.navy + '12', border: `1px solid ${Colors.navy}25` }}>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: Colors.navy, fontFamily: MONO }} noWrap>
                   {internalTrayItem.clientName || internalTrayItem.clientCode}
                 </Typography>
               </Box>
-              <IconButton size="small" onClick={() => setInternalTrayItem(null)} sx={{ color: 'rgba(255,255,255,0.6)' }}>
+              <IconButton size="small" onClick={() => setInternalTrayItem(null)} sx={{ color: Colors.textMuted }}>
                 <Close fontSize="small" />
               </IconButton>
             </Box>
 
-            <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+            {/* Messages */}
+            <Box sx={{ flex: 1, overflowY: 'auto', px: 2.5, py: 1 }}>
               {(!internalTrayItem.internalCommunication || internalTrayItem.internalCommunication.length === 0) ? (
                 <Box sx={{ textAlign: 'center', pt: 6 }}>
                   <Typography sx={{ color: Colors.textMuted, fontSize: '0.875rem' }}>No internal messages</Typography>
                 </Box>
               ) : (
-                internalTrayItem.internalCommunication.map((msg, i) => {
-                  const isSystem = msg.msgType === 'trigger' || msg.source === 'dm';
-                  return (
-                    <Box key={msg._id || i} sx={{ mb: 1.5 }}>
-                      <Box sx={{
-                        p: 1.5, borderRadius: '10px',
-                        bgcolor: isSystem ? Colors.navy + '08' : '#fff',
-                        border: `1px solid ${isSystem ? Colors.navy + '20' : Colors.border}`,
-                        borderLeft: `3px solid ${isSystem ? Colors.navy : Colors.gold}`,
-                      }}>
-                        <Typography sx={{ fontSize: '0.8125rem', color: Colors.textPrimary, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                          {renderBold(msg.text)}
-                        </Typography>
+                [...internalTrayItem.internalCommunication]
+                  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                  .map((msg, i) => {
+                    const isSystem = msg.msgType === 'trigger' || msg.source === 'dm';
+                    const ts = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                    return (
+                      <Box key={msg._id || i} sx={{ display: 'flex', mb: 1.5, flexDirection: isSystem ? 'column' : 'row', alignItems: isSystem ? 'center' : 'flex-start', gap: 1 }}>
+                        {!isSystem && (
+                          <Box sx={{
+                            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                            bgcolor: Colors.navy, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <Typography sx={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700, fontFamily: MONO }}>
+                              {(msg.sender || '?')[0].toUpperCase()}
+                            </Typography>
+                          </Box>
+                        )}
+                        <Box sx={{ maxWidth: isSystem ? '90%' : '78%' }}>
+                          {!isSystem && msg.sender && (
+                            <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: Colors.textMuted, fontFamily: MONO, letterSpacing: '0.04em', mb: 0.3 }}>
+                              {msg.sender}
+                            </Typography>
+                          )}
+                          <Box sx={{
+                            p: '10px 12px',
+                            borderRadius: isSystem ? '10px' : '4px 10px 10px 10px',
+                            bgcolor: isSystem ? Colors.navy + '08' : '#fff',
+                            border: `1px solid ${isSystem ? Colors.navy + '18' : Colors.border}`,
+                            ...(isSystem ? {} : { borderLeft: `3px solid ${Colors.gold}` }),
+                          }}>
+                            <Typography sx={{ fontSize: '0.8125rem', color: Colors.textPrimary, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                              {renderBold(msg.text)}
+                            </Typography>
+                          </Box>
+                          <Typography sx={{ fontSize: '0.5rem', color: Colors.textMuted, fontFamily: MONO, mt: 0.3, textAlign: isSystem ? 'center' : 'left' }}>
+                            {ts}
+                          </Typography>
+                        </Box>
                       </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.5, mt: 0.4 }}>
-                        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 600, color: Colors.textMuted, fontFamily: '"JetBrains Mono", monospace' }}>
-                          {msg.sender}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.5625rem', color: Colors.textMuted, fontFamily: '"JetBrains Mono", monospace' }}>
-                          {relativeTime(msg.createdAt)}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  );
-                })
+                    );
+                  })
               )}
             </Box>
           </>
@@ -604,8 +630,34 @@ export default function Queue() {
   );
 }
 
+function TriggerBadge({ type }) {
+  if (!type) return null;
+  const t = type.toLowerCase();
+  if (t === 'reply') {
+    return (
+      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '3px', px: '6px', py: '2px', borderRadius: '99px', bgcolor: Colors.info + '15', border: `1px solid ${Colors.info}40` }}>
+        <Reply sx={{ fontSize: 10, color: Colors.info }} />
+        <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', fontWeight: 700, color: Colors.info, letterSpacing: '0.06em' }}>REPLY</Typography>
+      </Box>
+    );
+  }
+  if (t === 'initiation') {
+    return (
+      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '3px', px: '6px', py: '2px', borderRadius: '99px', bgcolor: Colors.gold + '18', border: `1px solid ${Colors.gold}50` }}>
+        <Send sx={{ fontSize: 10, color: Colors.gold }} />
+        <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, letterSpacing: '0.06em' }}>INITIATION</Typography>
+      </Box>
+    );
+  }
+  return (
+    <Typography sx={{ fontFamily: MONO, fontSize: '0.5625rem', color: Colors.textMuted, letterSpacing: '0.05em' }}>
+      {type.toUpperCase()}
+    </Typography>
+  );
+}
+
 function ApprovalCard({
-  item, canWrite, safeScroll,
+  item, canWrite, safeScroll, showEditOption,
   expandedFieldsId, selectedFieldIdx,
   editingId, draftBody, editorReason, savingBodyId,
   approvingId, rejectingId, draftAmount, savingAmountId, regeneratingConvId,
@@ -614,6 +666,7 @@ function ApprovalCard({
   onToggleFields, onSelectField, onBackToFields, onDraftAmountChange, onSaveAmount, onOpenInternalTray,
 }) {
   const isEditing = editingId === item._id;
+  const isDisputeItem = item.intent === 'dispute_response' && Array.isArray(item.internalCommunication) && item.internalCommunication.length > 0;
 
   return (
     <Paper elevation={0} sx={{ mb: '14px', p: 2, bgcolor: '#fff', border: `1px solid ${Colors.border}`, borderRadius: '14px' }}>
@@ -627,21 +680,26 @@ function ApprovalCard({
               {item.clientName || item.clientCode || 'Client'}
             </Typography>
             {(item.clientWaName || item.customerNumber) && (
-              <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.5rem', color: Colors.textMuted, letterSpacing: '0.04em', mb: 0.25 }} noWrap>
-                {item.clientWaName && item.clientWaName !== item.clientName ? item.clientWaName : ''}{item.customerNumber ? (item.clientWaName && item.clientWaName !== item.clientName ? ' · ' : '') + item.customerNumber : ''}
+              <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', color: Colors.textMuted, letterSpacing: '0.04em', mb: 0.25 }} noWrap>
+                {item.clientWaName && item.clientWaName !== item.clientName ? item.clientWaName : ''}
+                {item.customerNumber ? (item.clientWaName && item.clientWaName !== item.clientName ? ' · ' : '') + item.customerNumber : ''}
               </Typography>
             )}
-            <Box sx={{ display: 'flex', gap: 0.75, mt: 0.25, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.5625rem', color: Colors.textMuted, letterSpacing: '0.05em' }}>
-                {item.triggerType?.toUpperCase() || 'MESSAGE'}
-              </Typography>
+            {/* Meta row: triggerType badge + lastSyncedAt + gold badge */}
+            <Box sx={{ display: 'flex', gap: 0.75, mt: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+              <TriggerBadge type={item.triggerType} />
+              {item.lastSyncedAt && (
+                <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', color: Colors.textMuted, letterSpacing: '0.03em' }}>
+                  {item.lastSyncedAt}
+                </Typography>
+              )}
               {item.hasUnfixGold ? (
                 <Box sx={{ display: 'inline-flex', px: '6px', py: '2px', borderRadius: '99px', bgcolor: Colors.gold + '18', border: `1px solid ${Colors.gold}50` }}>
-                  <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, letterSpacing: '0.06em' }}>UNFIX GOLD</Typography>
+                  <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, letterSpacing: '0.06em' }}>UNFIX GOLD</Typography>
                 </Box>
               ) : (
                 <Box sx={{ display: 'inline-flex', px: '6px', py: '2px', borderRadius: '99px', bgcolor: Colors.success + '12', border: `1px solid ${Colors.success}40` }}>
-                  <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.5rem', fontWeight: 700, color: Colors.success, letterSpacing: '0.06em' }}>FIXED</Typography>
+                  <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', fontWeight: 700, color: Colors.success, letterSpacing: '0.06em' }}>FIXED</Typography>
                 </Box>
               )}
             </Box>
@@ -653,21 +711,27 @@ function ApprovalCard({
               <Typography sx={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '1.125rem', fontWeight: 600, color: Colors.danger, letterSpacing: '-0.3px', lineHeight: 1 }}>
                 ₹{Math.round(item.totalBalance / 100000).toLocaleString('en-IN')}L
               </Typography>
-              <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.4375rem', color: Colors.textMuted, letterSpacing: '0.1em', mt: 0.25 }}>OVERDUE</Typography>
+              <Typography sx={{ fontFamily: MONO, fontSize: '0.4375rem', color: Colors.textMuted, letterSpacing: '0.1em', mt: 0.25 }}>OVERDUE</Typography>
             </>
           )}
           <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end', mt: 0.75 }}>
             <Button size="small" onClick={() => onViewThread(item._id, item.clientCode, item.clientName)}
-              sx={{ height: 22, fontSize: '0.5625rem', fontWeight: 700, color: Colors.gold, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.04em', p: '2px 8px', minWidth: 0, border: `1px solid ${Colors.gold}50`, borderRadius: '6px' }}>
+              sx={{ height: 22, fontSize: '0.5625rem', fontWeight: 700, color: Colors.gold, fontFamily: MONO, letterSpacing: '0.04em', p: '2px 8px', minWidth: 0, border: `1px solid ${Colors.gold}50`, borderRadius: '6px' }}>
               View Thread
             </Button>
-            {item.internalCommunication?.length > 0 && (
-              <Tooltip title="Internal comms">
-                <IconButton size="small"
+            {isDisputeItem && (
+              <Tooltip title="Internal discussion">
+                <Box
                   onClick={() => onOpenInternalTray(item)}
-                  sx={{ border: `1px solid rgba(0,0,0,0.25)`, borderRadius: '6px', p: '2px', width: 26, height: 26, bgcolor: 'rgba(0,0,0,0.06)', '&:hover': { bgcolor: 'rgba(0,0,0,0.12)' } }}>
-                  <ForumOutlined sx={{ fontSize: 13, color: Colors.textPrimary }} />
-                </IconButton>
+                  sx={{ position: 'relative', display: 'inline-flex', cursor: 'pointer', border: `1px solid rgba(0,0,0,0.25)`, borderRadius: '6px', p: '2px', width: 26, height: 26, bgcolor: Colors.navy, alignItems: 'center', justifyContent: 'center', '&:hover': { opacity: 0.85 } }}
+                >
+                  <ForumOutlined sx={{ fontSize: 13, color: '#fff' }} />
+                  <Box sx={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', bgcolor: Colors.danger, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Typography sx={{ fontSize: '0.4375rem', fontWeight: 700, color: '#fff', lineHeight: 1, fontFamily: MONO }}>
+                      {item.internalCommunication.length}
+                    </Typography>
+                  </Box>
+                </Box>
               </Tooltip>
             )}
             {item.metadata?.templateName && (
@@ -686,7 +750,7 @@ function ApprovalCard({
       {/* ── Client said ── */}
       {item.lastClientMessage?.body && (
         <Box sx={{ bgcolor: Colors.cream, borderLeft: '3px solid', borderColor: Colors.textMuted, borderRadius: '0 8px 8px 0', px: '14px', py: '10px', mb: 1 }}>
-          <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', mb: 0.75 }}>CLIENT SAID</Typography>
+          <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', mb: 0.75 }}>CLIENT SAID</Typography>
           <Typography sx={{ fontSize: '0.75rem', color: Colors.textSecondary, lineHeight: 1.55, fontStyle: 'italic' }} style={{ WebkitLineClamp: 3, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical' }}>
             {item.lastClientMessage.body}
           </Typography>
@@ -695,7 +759,7 @@ function ApprovalCard({
 
       {/* ── Aira will send ── */}
       <Box sx={{ bgcolor: Colors.cardAlt, borderLeft: '3px solid', borderColor: Colors.gold, borderRadius: '0 8px 8px 0', px: '14px', py: '12px', mb: 1.5 }}>
-        <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, letterSpacing: '0.15em', mb: 0.75 }}>AIRA WILL SEND</Typography>
+        <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, letterSpacing: '0.15em', mb: 0.75 }}>AIRA WILL SEND</Typography>
         {isEditing ? (
           <TextField fullWidth multiline minRows={3} value={draftBody} onChange={e => onDraftChange(e.target.value)} size="small"
             sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#fff', fontSize: '0.8125rem' } }} />
@@ -710,7 +774,7 @@ function ApprovalCard({
       </Box>
 
       {/* ── Placeholder editors (collapsible) ── */}
-      {!safeScroll && (() => {
+      {!safeScroll && showEditOption && (() => {
         const placeholders = item.metadata?.templateData?.body?.placeholders;
         if (!Array.isArray(placeholders) || placeholders.length === 0 || !canWrite) return null;
         const templateFields = item.templateFields ?? item.metadata?.templateData?.variableValues ?? {};
@@ -720,7 +784,6 @@ function ApprovalCard({
         const isSaving = savingAmountId === item._id;
         return (
           <Box sx={{ mb: 1.5, border: `1px solid ${Colors.gold}35`, borderRadius: '10px', overflow: 'hidden' }}>
-            {/* Toggle header */}
             <Box
               onClick={() => onToggleFields(item._id)}
               sx={{
@@ -735,11 +798,11 @@ function ApprovalCard({
               }}
             >
               <Edit sx={{ fontSize: 14, color: Colors.gold }} />
-              <Typography sx={{ flex: 1, fontSize: '0.6875rem', fontWeight: 700, color: Colors.gold, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.06em' }}>
+              <Typography sx={{ flex: 1, fontSize: '0.6875rem', fontWeight: 700, color: Colors.gold, fontFamily: MONO, letterSpacing: '0.06em' }}>
                 EDIT TEMPLATE FIELDS
               </Typography>
               <Box sx={{ px: '7px', py: '2px', borderRadius: '99px', bgcolor: Colors.gold, mr: 0.5, display: 'flex', alignItems: 'center' }}>
-                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#fff', fontFamily: '"JetBrains Mono", monospace', lineHeight: 1.5 }}>
+                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#fff', fontFamily: MONO, lineHeight: 1.5 }}>
                   {placeholders.length}
                 </Typography>
               </Box>
@@ -750,9 +813,8 @@ function ApprovalCard({
 
             {isExpanded && (
               selectedFieldIdx === null ? (
-                /* Field picker list */
                 <Box sx={{ bgcolor: '#fff' }}>
-                  <Typography sx={{ px: 1.5, pt: 1, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.12em' }}>
+                  <Typography sx={{ px: 1.5, pt: 1, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, fontFamily: MONO, letterSpacing: '0.12em' }}>
                     WHICH FIELD TO EDIT?
                   </Typography>
                   {placeholders.map((current, idx) => {
@@ -771,7 +833,7 @@ function ApprovalCard({
                         }}
                       >
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: Colors.navy, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.04em', mb: 0.25 }}>
+                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: Colors.navy, fontFamily: MONO, letterSpacing: '0.04em', mb: 0.25 }}>
                             {fieldName}
                           </Typography>
                           <Typography sx={{ fontSize: '0.8125rem', color: Colors.textSecondary }} noWrap>
@@ -784,7 +846,6 @@ function ApprovalCard({
                   })}
                 </Box>
               ) : (
-                /* Field edit panel */
                 (() => {
                   const idx = selectedFieldIdx;
                   const current = placeholders[idx];
@@ -796,11 +857,11 @@ function ApprovalCard({
                         sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.25, cursor: 'pointer', width: 'fit-content', '&:hover': { opacity: 0.7 } }}
                       >
                         <ArrowBack sx={{ fontSize: 14, color: Colors.gold }} />
-                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: Colors.gold, fontFamily: '"JetBrains Mono", monospace' }}>
+                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: Colors.gold, fontFamily: MONO }}>
                           All fields
                         </Typography>
                       </Box>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: Colors.navy, fontFamily: '"JetBrains Mono", monospace', mb: 0.25 }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: Colors.navy, fontFamily: MONO, mb: 0.25 }}>
                         {fieldName}
                       </Typography>
                       <Typography sx={{ fontSize: '0.75rem', color: Colors.textMuted, mb: 1.25 }}>
@@ -818,7 +879,7 @@ function ApprovalCard({
                           variant="contained" size="small"
                           disabled={isSaving}
                           onClick={async () => { await onSaveAmount(item._id, idx); onBackToFields(); }}
-                          sx={{ bgcolor: Colors.gold, '&:hover': { bgcolor: Colors.goldLight }, height: 40, px: 2, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem', flexShrink: 0 }}
+                          sx={{ bgcolor: Colors.gold, '&:hover': { bgcolor: Colors.goldLight }, height: 40, px: 2, fontWeight: 700, fontFamily: MONO, fontSize: '0.75rem', flexShrink: 0 }}
                         >
                           {isSaving ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'Update'}
                         </Button>

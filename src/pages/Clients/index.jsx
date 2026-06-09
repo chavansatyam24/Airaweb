@@ -2,7 +2,8 @@ import { ChevronRight, SwapVert } from '@mui/icons-material';
 import {
   Box,
   CircularProgress,
-  Drawer,
+  Menu,
+  MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
@@ -40,7 +41,7 @@ export default function Clients() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('balance_desc');
-  const [showSortTray, setShowSortTray] = useState(false);
+  const [sortAnchor, setSortAnchor] = useState(null);
   const loaderRef = useRef(null);
 
   useEffect(() => {
@@ -98,11 +99,11 @@ export default function Clients() {
           </Typography>
         </Box>
         <Box
-          onClick={() => setShowSortTray(true)}
+          onClick={e => setSortAnchor(e.currentTarget)}
           sx={{
             p: '6px', borderRadius: '8px', cursor: 'pointer',
             color: sort !== 'balance_desc' ? Colors.gold : 'rgba(255,255,255,0.75)',
-            bgcolor: 'rgba(255,255,255,0.08)',
+            bgcolor: sortAnchor ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)',
             border: `1px solid ${sort !== 'balance_desc' ? Colors.gold + '60' : 'rgba(255,255,255,0.2)'}`,
             display: 'flex', alignItems: 'center',
             '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
@@ -110,6 +111,50 @@ export default function Clients() {
         >
           <SwapVert sx={{ fontSize: 20 }} />
         </Box>
+        <Menu
+          anchorEl={sortAnchor}
+          open={Boolean(sortAnchor)}
+          onClose={() => setSortAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          PaperProps={{
+            elevation: 0,
+            sx: {
+              mt: 0.75, minWidth: 240,
+              border: `1px solid ${Colors.border}`,
+              borderRadius: '14px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+              overflow: 'hidden',
+              '& .MuiList-root': { py: 0.75 },
+            },
+          }}
+        >
+          <Typography sx={{ px: 2, pt: 1.25, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.2em', fontFamily: MONO }}>
+            SORT BY
+          </Typography>
+          {SORT_OPTIONS.map(o => (
+            <MenuItem
+              key={o.val}
+              onClick={() => { setSort(o.val); setSortAnchor(null); }}
+              sx={{
+                mx: 0.75, borderRadius: '8px',
+                py: 1, px: 1.5,
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                bgcolor: sort === o.val ? Colors.gold + '12' : 'transparent',
+                transition: 'all 0.1s',
+                '&:hover': { bgcolor: sort === o.val ? Colors.gold + '20' : Colors.bg },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+                <Typography sx={{ flex: 1, fontSize: '0.8125rem', fontWeight: sort === o.val ? 700 : 500, color: sort === o.val ? Colors.navy : Colors.textPrimary }}>
+                  {o.label}
+                </Typography>
+                {sort === o.val && <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: Colors.gold, flexShrink: 0 }} />}
+              </Box>
+              <Typography sx={{ fontSize: '0.625rem', color: Colors.textMuted, mt: 0.15 }}>{o.sub}</Typography>
+            </MenuItem>
+          ))}
+        </Menu>
       </Box>
 
       {/* ── Search ── */}
@@ -234,55 +279,6 @@ export default function Clients() {
         )}
       </Box>
 
-      {/* ── Sort bottom sheet ── */}
-      <Drawer
-        anchor="bottom"
-        open={showSortTray}
-        onClose={() => setShowSortTray(false)}
-        PaperProps={{
-          sx: {
-            borderTopLeftRadius: '20px', borderTopRightRadius: '20px',
-            px: 2.5, pt: 1.5, pb: 4,
-          },
-        }}
-      >
-        {/* Handle */}
-        <Box sx={{ width: 40, height: 4, borderRadius: '2px', bgcolor: Colors.border, mx: 'auto', mb: 2 }} />
-        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', fontFamily: MONO, mb: 1 }}>
-          SORT BY
-        </Typography>
-        {SORT_OPTIONS.map(opt => {
-          const active = sort === opt.val;
-          return (
-            <Box
-              key={opt.val}
-              onClick={() => { setSort(opt.val); setShowSortTray(false); }}
-              sx={{
-                display: 'flex', alignItems: 'center', py: 1.5,
-                borderBottom: `1px solid ${Colors.border}`,
-                cursor: 'pointer',
-                '&:last-child': { borderBottom: 'none' },
-              }}
-            >
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: active ? 700 : 600, color: active ? Colors.navy : Colors.textPrimary, mb: 0.25 }}>
-                  {opt.label}
-                </Typography>
-                <Typography sx={{ fontSize: '0.6875rem', color: Colors.textMuted }}>
-                  {opt.sub}
-                </Typography>
-              </Box>
-              <Box sx={{
-                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                border: `2px solid ${active ? Colors.success : Colors.border}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {active && <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: Colors.success }} />}
-              </Box>
-            </Box>
-          );
-        })}
-      </Drawer>
     </Box>
   );
 }
