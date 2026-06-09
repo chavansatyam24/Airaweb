@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   IconButton,
   Paper,
@@ -38,7 +37,7 @@ export default function Held() {
   });
   const items = data?.items ?? [];
   const total = data?.pagination?.total ?? items.length;
-  const hasMore = items.length === PAGE_SIZE;
+  const hasMore = data?.pagination?.hasMore ?? items.length === PAGE_SIZE;
 
   const reject = async (id) => {
     if (!window.confirm('Reject this message?')) return;
@@ -98,14 +97,22 @@ export default function Held() {
               const isEditing = editingId === item._id;
               return (
                 <Paper key={item._id} elevation={0} sx={{ mb: 1.5, p: 2, border: `1px solid ${Colors.border}`, borderRadius: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: item.deliveryError ? 0.75 : 1 }}>
                     <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: Colors.navy }}>
                       {item.clientName || item.clientCode}
                     </Typography>
-                    {item.deliveryError && (
-                      <Chip label={item.deliveryError} size="small" sx={{ fontSize: '0.5625rem', bgcolor: Colors.warning + '18', color: Colors.warning, border: `1px solid ${Colors.warning}40`, maxWidth: 200 }} />
-                    )}
+                    <Button size="small"
+                      onClick={() => navigate(`/client/${item.clientCode}?conversationId=${item._id}`)}
+                      sx={{ height: 22, fontSize: '0.5625rem', fontWeight: 700, color: Colors.gold, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.04em', p: '2px 8px', minWidth: 0, border: `1px solid ${Colors.gold}50`, borderRadius: '6px' }}>
+                      VIEW THREAD
+                    </Button>
                   </Box>
+
+                  {item.deliveryError && (
+                    <Box sx={{ bgcolor: Colors.warning + '12', borderLeft: `3px solid ${Colors.warning}`, borderRadius: '0 6px 6px 0', px: 1.5, py: 0.75, mb: 1 }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: Colors.warning, fontWeight: 600 }}>{item.deliveryError}</Typography>
+                    </Box>
+                  )}
 
                   {isEditing ? (
                     <TextField
@@ -137,10 +144,12 @@ export default function Held() {
                         </>
                       ) : (
                         <>
-                          <Button size="small" variant="outlined" onClick={() => { setEditingId(item._id); setEditDraft(item.body || ''); }}
-                            sx={{ flex: 1, borderColor: Colors.border, color: Colors.textSecondary }}>
-                            Edit
-                          </Button>
+                          {!item.metadata?.templateName && (
+                            <Button size="small" variant="outlined" onClick={() => { setEditingId(item._id); setEditDraft(item.body || ''); }}
+                              sx={{ flex: 1, borderColor: Colors.border, color: Colors.textSecondary }}>
+                              Edit
+                            </Button>
+                          )}
                           <Button size="small" variant="outlined" onClick={() => reject(item._id)} disabled={rejectingId === item._id}
                             sx={{ flex: 1, borderColor: Colors.danger, color: Colors.danger }}>
                             {rejectingId === item._id ? <CircularProgress size={14} sx={{ color: Colors.danger }} /> : 'Reject'}

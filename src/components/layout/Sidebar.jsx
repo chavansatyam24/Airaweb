@@ -1,12 +1,12 @@
 import {
-  // BarChart,
+  BarChart,
   ChatBubbleOutlined,
   CheckCircleOutlined,
   ErrorOutlined,
   Groups,
   Logout,
-  // MenuBook,
-  MoreHoriz,
+  MenuBook,
+  // MoreHoriz,
   SwapHoriz,
   Timer,
 } from '@mui/icons-material';
@@ -25,7 +25,7 @@ import {
 } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../store/auth';
-import { useCanAccess } from '../../store/permissions';
+import { useCanAccess, usePermissionsStore } from '../../store/permissions';
 import { Colors } from '../../theme/index';
 
 const DRAWER_WIDTH = 220;
@@ -37,10 +37,10 @@ const NAV_ITEMS = [
   { label: 'Promises', path: '/promises', icon: <CheckCircleOutlined />, subMenu: 'Promise' },
   { label: 'Disputes', path: '/disputes', icon: <ErrorOutlined />, subMenu: null },
   { label: 'Unfix', path: '/unfix', icon: <SwapHoriz />, subMenu: 'Unfix' },
-  // { label: 'Brain', path: '/brain', icon: <MenuBook />, subMenu: 'Brain' },
+  { label: 'Brain', path: '/brain', icon: <MenuBook />, subMenu: 'Brain' },
   { label: 'Chat', path: '/chat', icon: <ChatBubbleOutlined />, subMenu: 'Chat' },
   // { label: 'Report', path: '/report', icon: <BarChart />, subMenu: null },
-  { label: 'Settings', path: '/settings', icon: <MoreHoriz />, subMenu: null },
+  // { label: 'Settings', path: '/settings', icon: <MoreHoriz />, subMenu: null },
 ];
 
 function NavItem({ item, collapsed }) {
@@ -98,9 +98,11 @@ function NavItem({ item, collapsed }) {
 export default function Sidebar({ collapsed = false }) {
   const user = useAuth(s => s.user);
   const logout = useAuth(s => s.logout);
+  const clearPermissions = usePermissionsStore(s => s.clear);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    clearPermissions();
     await logout();
     navigate('/login');
   };

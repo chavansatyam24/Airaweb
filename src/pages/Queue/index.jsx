@@ -3,6 +3,8 @@ import {
   Close,
   Edit,
   ForumOutlined,
+  Lock,
+  LockOpen,
   Refresh,
   Search,
   SwapVert,
@@ -82,6 +84,7 @@ export default function Queue() {
   const [regeneratingConvId, setRegeneratingConvId] = useState(null);
   const [showRegenSingle, setShowRegenSingle] = useState(false);
   const [pendingRegenConvId, setPendingRegenConvId] = useState(null);
+  const [safeScroll, setSafeScroll] = useState(false);
   const [editingAmount, setEditingAmount] = useState(null);
   const [draftAmount, setDraftAmount] = useState('');
   const [savingAmountId, setSavingAmountId] = useState(null);
@@ -266,6 +269,11 @@ export default function Queue() {
             Approval Queue
           </Typography>
         </Box>
+        <Tooltip title={safeScroll ? 'Unlock auto-scroll' : 'Lock scroll position'}>
+          <IconButton size="small" sx={{ color: safeScroll ? Colors.gold : 'rgba(255,255,255,0.6)' }} onClick={() => setSafeScroll(v => !v)}>
+            {safeScroll ? <Lock fontSize="small" /> : <LockOpen fontSize="small" />}
+          </IconButton>
+        </Tooltip>
         <Tooltip title="Held messages">
           <IconButton size="small" sx={{ color: '#fff' }} onClick={() => navigate('/held')}>
             <Timer fontSize="small" />
@@ -412,7 +420,7 @@ export default function Queue() {
                 key={item._id}
                 item={item}
                 canWrite={canWrite}
-                safeScroll={false}
+                safeScroll={safeScroll}
                 editingId={editingId}
                 draftBody={draftBody}
                 editorReason={editorReason}
@@ -545,7 +553,7 @@ export default function Queue() {
                 </Box>
               ) : (
                 internalTrayItem.internalCommunication.map((msg, i) => {
-                  const isSystem = msg.msgType === 'trigger' || msg.source === 'channel';
+                  const isSystem = msg.msgType === 'trigger' || msg.source === 'dm';
                   return (
                     <Box key={msg._id || i} sx={{ mb: 1.5 }}>
                       <Box sx={{

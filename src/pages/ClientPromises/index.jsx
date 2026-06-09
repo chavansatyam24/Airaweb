@@ -9,7 +9,6 @@ import {
   MenuItem,
   Paper,
   Snackbar,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -251,9 +250,10 @@ export default function ClientPromises() {
   const [sortAnchor, setSortAnchor] = useState(null);
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'success' });
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['promises', 'list', status, clientCode, sort],
     queryFn: () => promiseApi.list({ status, clientCode, sort }),
+    retry: false,
   });
 
   const deleteMutation = useMutation({

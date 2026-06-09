@@ -10,22 +10,37 @@ function getSubRight(data, subMenu) {
   return undefined;
 }
 
+const PERM_CACHE_KEY = 'pooja_permissions_cache';
+
+function loadCached() {
+  try {
+    const s = localStorage.getItem(PERM_CACHE_KEY);
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
+}
+
 export const usePermissionsStore = create((set) => ({
-  data: null,
+  data: loadCached(),
   isLoading: false,
-  ready: false,
+  ready: !!loadCached(),
 
   fetchPermissions: async () => {
     set({ isLoading: true });
     try {
       const res = await permissionsApi.fetch();
-      set({ data: res.data ?? null, isLoading: false, ready: true });
+      const data = res.data ?? null;
+      if (data) localStorage.setItem(PERM_CACHE_KEY, JSON.stringify(data));
+      else localStorage.removeItem(PERM_CACHE_KEY);
+      set({ data, isLoading: false, ready: true });
     } catch {
       set({ isLoading: false, ready: true });
     }
   },
 
-  clear: () => set({ data: null, isLoading: false, ready: false }),
+  clear: () => {
+    localStorage.removeItem(PERM_CACHE_KEY);
+    set({ data: null, isLoading: false, ready: false });
+  },
 }));
 
 export const usePermissionsReady = () => usePermissionsStore(s => s.ready);

@@ -31,13 +31,12 @@ function AuthGate({ children }) {
   useEffect(() => {
     if (isAuthenticated) {
       fetchPermissions();
-    } else {
-      clearPermissions();
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     const handler = () => {
+      clearPermissions();
       useAuth.getState().logout();
     };
     window.addEventListener('auth:logout', handler);

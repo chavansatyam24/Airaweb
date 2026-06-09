@@ -305,13 +305,23 @@ export default function ClientOverrides() {
                     { label: 'OUTSTANDING', value: formatINRLakhs(genResult.overdueamt) },
                     { label: 'OVERDUE DAYS', value: `${genResult.overduedays}d` },
                     { label: 'INVOICES', value: genResult.invoiceCount ?? '—' },
+                    ...(genResult.unfixGold > 0 ? [{ label: 'UNFIX GOLD', value: formatINRLakhs(genResult.unfixGold), highlight: true }] : []),
                   ].map(m => (
                     <Box key={m.label}>
-                      <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.1em', fontFamily: MONO }}>{m.label}</Typography>
-                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: Colors.navy, fontFamily: SERIF }}>{m.value}</Typography>
+                      <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: m.highlight ? Colors.gold : Colors.textMuted, letterSpacing: '0.1em', fontFamily: MONO }}>{m.label}</Typography>
+                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: m.highlight ? Colors.gold : Colors.navy, fontFamily: SERIF }}>{m.value}</Typography>
                     </Box>
                   ))}
                 </Box>
+                {genResult.convId && (
+                  <Button
+                    size="small"
+                    onClick={() => navigate(`/client/${id}?conversationId=${genResult.convId}`)}
+                    sx={{ mt: 1.5, height: 30, fontSize: '0.625rem', fontWeight: 700, fontFamily: MONO, color: Colors.gold, border: `1px solid ${Colors.gold}50`, borderRadius: '6px', px: 1.5 }}
+                  >
+                    VIEW IN CHAT →
+                  </Button>
+                )}
               </Box>
             )}
           </Paper>

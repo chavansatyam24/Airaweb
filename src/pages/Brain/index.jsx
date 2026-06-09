@@ -1,4 +1,4 @@
-import { Check, FilterList, Search } from '@mui/icons-material';
+import { Check, Delete, FilterList, Search } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -14,9 +14,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { brainApi, knowledgeApi } from '../../api/index';
+import { brainApi, knowledgeApi, poojaChatApi } from '../../api/index';
 import { relativeTime } from '../../utils/format';
 import { Colors } from '../../theme/index';
 
@@ -249,10 +249,21 @@ function PatternCard({ item, editingId, editDraft, approvingId, rejectingId, onE
 
 // ── Lesson Card ───────────────────────────────────────────────────────────────
 function LessonCard({ item }) {
+  const qc = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: () => brainApi.deleteLesson(item._id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['knowledge'] }),
+  });
+
+  const handleDelete = () => {
+    if (!window.confirm('Delete this lesson? This cannot be undone.')) return;
+    deleteMutation.mutate();
+  };
+
   return (
     <Paper elevation={0} sx={{ p: 2.5, border: `1px solid ${Colors.border}`, borderRadius: '14px', display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Head: extracted pattern + magnitude badge */}
+      {/* Head: extracted pattern + magnitude badge + delete */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
         <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: Colors.navy, lineHeight: 1.5, flex: 1 }}>
           {item.extractedPattern || item.pattern || item._displayText || '—'}
@@ -264,6 +275,9 @@ function LessonCard({ item }) {
             </Typography>
           </Box>
         )}
+        <Box component="span" onClick={handleDelete} sx={{ cursor: 'pointer', color: deleteMutation.isPending ? Colors.textMuted : Colors.danger, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          {deleteMutation.isPending ? <CircularProgress size={14} sx={{ color: Colors.textMuted }} /> : <Delete sx={{ fontSize: 16 }} />}
+        </Box>
       </Box>
 
       {/* Meta: taught by + time */}
@@ -329,10 +343,21 @@ function LessonCard({ item }) {
 
 // ── Instruction Card ──────────────────────────────────────────────────────────
 function InstructionCard({ item }) {
+  const qc = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: () => poojaChatApi.deleteInstruction(item._id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['knowledge'] }),
+  });
+
+  const handleDelete = () => {
+    if (!window.confirm('Delete this instruction? This cannot be undone.')) return;
+    deleteMutation.mutate();
+  };
+
   return (
     <Paper elevation={0} sx={{ p: 2.5, border: `1px solid ${Colors.border}`, borderRadius: '14px', display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Head: text + status badge */}
+      {/* Head: text + status badge + delete */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
         <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: Colors.navy, lineHeight: 1.5, flex: 1 }}>
           {item.refNumber ? `${item.refNumber} · ` : ''}{item.instructionText || item.text || item._displayText || '—'}
@@ -344,6 +369,9 @@ function InstructionCard({ item }) {
             </Typography>
           </Box>
         )}
+        <Box component="span" onClick={handleDelete} sx={{ cursor: 'pointer', color: deleteMutation.isPending ? Colors.textMuted : Colors.danger, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          {deleteMutation.isPending ? <CircularProgress size={14} sx={{ color: Colors.textMuted }} /> : <Delete sx={{ fontSize: 16 }} />}
+        </Box>
       </Box>
 
       {/* Meta */}

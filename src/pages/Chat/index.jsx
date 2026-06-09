@@ -16,7 +16,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { poojaChatApi } from '../../api/index';
-import { useAuth } from '../../store/auth';
+import { useAuth, useIsAdmin } from '../../store/auth';
 import { Colors } from '../../theme/index';
 import { formatTime } from '../../utils/format';
 
@@ -183,6 +183,7 @@ function InstructionPanel({ open, onClose }) {
 }
 
 export default function Chat() {
+  const isAdmin = useIsAdmin();
   const user = useAuth(s => s.user);
   const userId = user?.id || CHAT_USER_ID;
   const [input, setInput] = useState('');
@@ -227,6 +228,16 @@ export default function Chat() {
       setSnack({ open: true, msg: 'Could not confirm', severity: 'error' });
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', bgcolor: Colors.bg, gap: 2 }}>
+        <Typography sx={{ fontSize: '2.5rem' }}>🔒</Typography>
+        <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: Colors.navy, fontFamily: SERIF }}>Admin Only</Typography>
+        <Typography sx={{ fontSize: '0.875rem', color: Colors.textSecondary }}>You need admin access to use Chat with Pooja.</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>

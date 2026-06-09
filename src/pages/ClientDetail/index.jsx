@@ -1,9 +1,8 @@
-import { ArrowBack, Send, Settings, Sync } from '@mui/icons-material';
+import { ArrowBack, Close, Edit, Send, Settings, Sync } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Divider,
   IconButton,
@@ -36,11 +35,14 @@ function getBubbleStyle(item) {
   return { bgcolor: '#005C4B', color: '#fff', border: 'none', borderRadius: '18px 18px 4px 18px' };
 }
 
-function MsgBubble({ item, canWrite, approvingId, rejectingId, onApprove, onReject, onSetLightbox }) {
+function MsgBubble({ item, canWrite, approvingId, rejectingId, editingId, editDraft, savingId, onApprove, onReject, onStartEdit, onCancelEdit, onDraftChange, onSaveEdit, onSetLightbox }) {
   const isOutbound = item.direction === 'outbound';
   const ds = item.deliveryStatus;
   const isPending = ds === 'awaiting_approval' || ds === 'held';
+  const isAwaiting = ds === 'awaiting_approval';
   const isFailed = ds === 'failed';
+  const isEditing = editingId === item._id;
+  const hasTemplate = !!item.metadata?.templateName;
   const style = getBubbleStyle(item);
   const isDark = style.bgcolor === Colors.navyAlt || style.bgcolor === '#005C4B';
   const metaColor = isDark ? 'rgba(255,255,255,0.5)' : Colors.textMuted;
@@ -61,10 +63,17 @@ function MsgBubble({ item, canWrite, approvingId, rejectingId, onApprove, onReje
             WHATSAPP
           </Typography>
         )}
-        {item.body && (
-          <Typography sx={{ fontSize: '0.875rem', lineHeight: 1.55, whiteSpace: 'pre-wrap', color: 'inherit' }}>{item.body}</Typography>
+        {isEditing ? (
+          <TextField
+            fullWidth multiline minRows={3} size="small" autoFocus
+            value={editDraft}
+            onChange={e => onDraftChange(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.12)', fontSize: '0.875rem', color: '#fff', '& fieldset': { borderColor: 'rgba(255,255,255,0.3)' } }, '& textarea': { color: '#fff' } }}
+          />
+        ) : (
+          item.body && <Typography sx={{ fontSize: '0.875rem', lineHeight: 1.55, whiteSpace: 'pre-wrap', color: 'inherit' }}>{item.body}</Typography>
         )}
-        {item.attachments?.filter(a => a.type === 'image' && a.url).map((a, idx) => (
+        {!isEditing && item.attachments?.filter(a => a.type === 'image' && a.url).map((a, idx) => (
           <Box key={idx} onClick={() => onSetLightbox(a.url)} sx={{ mt: 0.75, cursor: 'zoom-in', borderRadius: 1.5, overflow: 'hidden', maxWidth: 240 }}>
             <img src={a.url} alt="attachment" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
           </Box>
@@ -82,14 +91,37 @@ function MsgBubble({ item, canWrite, approvingId, rejectingId, onApprove, onReje
       </Box>
       {isPending && canWrite && (
         <Box sx={{ display: 'flex', gap: 0.75, mt: 0.5 }}>
-          <Button size="small" variant="outlined" onClick={() => onReject(item._id)} disabled={rejectingId === item._id}
-            sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', borderColor: Colors.danger, color: Colors.danger, px: 1.25, borderRadius: '8px' }}>
-            {rejectingId === item._id ? <CircularProgress size={12} sx={{ color: Colors.danger }} /> : 'REJECT'}
-          </Button>
-          <Button size="small" variant="contained" onClick={() => onApprove(item._id)} disabled={approvingId === item._id}
-            sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', bgcolor: Colors.success, px: 1.25, borderRadius: '8px', '&:hover': { bgcolor: Colors.success + 'e0' } }}>
-            {approvingId === item._id ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : 'APPROVE'}
-          </Button>
+          {isEditing ? (
+            <>
+              <IconButton size="small" onClick={onCancelEdit} sx={{ border: `1px solid ${Colors.border}`, borderRadius: '8px', width: 26, height: 26 }}>
+                <Close sx={{ fontSize: 13, color: Colors.textMuted }} />
+              </IconButton>
+              <Button size="small" variant="contained" onClick={() => onSaveEdit(item._id)} disabled={savingId === item._id}
+                sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', bgcolor: Colors.gold, px: 1.5, borderRadius: '8px', '&:hover': { bgcolor: Colors.goldLight } }}>
+                {savingId === item._id ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : 'SAVE'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button size="small" variant="outlined" onClick={() => onReject(item._id)} disabled={rejectingId === item._id}
+                sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', borderColor: Colors.danger, color: Colors.danger, px: 1.25, borderRadius: '8px' }}>
+                {rejectingId === item._id ? <CircularProgress size={12} sx={{ color: Colors.danger }} /> : 'REJECT'}
+              </Button>
+              {!hasTemplate && (
+                <Button size="small" variant="outlined" startIcon={<Edit sx={{ fontSize: 11 }} />}
+                  onClick={() => onStartEdit(item._id, item.body || '')}
+                  sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', borderColor: Colors.border, color: Colors.textMuted, px: 1.25, borderRadius: '8px' }}>
+                  EDIT
+                </Button>
+              )}
+              {isAwaiting && (
+                <Button size="small" variant="contained" onClick={() => onApprove(item._id)} disabled={approvingId === item._id}
+                  sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', bgcolor: Colors.success, px: 1.25, borderRadius: '8px', '&:hover': { bgcolor: Colors.success + 'e0' } }}>
+                  {approvingId === item._id ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : 'APPROVE'}
+                </Button>
+              )}
+            </>
+          )}
         </Box>
       )}
     </Box>
@@ -122,6 +154,9 @@ export default function ClientDetail() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [savingId, setSavingId] = useState(null);
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'error' });
   const chatEndRef = useRef(null);
   const chatStartRef = useRef(null);
@@ -251,6 +286,21 @@ export default function ClientDetail() {
     }
   };
 
+  const saveEdit = async (msgId) => {
+    if (!editDraft.trim()) return;
+    try {
+      setSavingId(msgId);
+      await queueApi.updateBody(msgId, { body: editDraft.trim(), by: user?.email || user?.username || 'unknown' });
+      setEditingId(null);
+      setEditDraft('');
+      await loadInitial();
+    } catch (err) {
+      setSnack({ open: true, msg: err?.response?.data?.message || 'Could not save', severity: 'error' });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const waName = overview?.clientWaName;
   const phone = overview?.customerNumber;
   const weightedAvg = overview?.weightedAvgOverdueDays;
@@ -372,8 +422,15 @@ export default function ClientDetail() {
                     canWrite={canWrite}
                     approvingId={approvingId}
                     rejectingId={rejectingId}
+                    editingId={editingId}
+                    editDraft={editDraft}
+                    savingId={savingId}
                     onApprove={approve}
                     onReject={reject}
+                    onStartEdit={(id, body) => { setEditingId(id); setEditDraft(body); }}
+                    onCancelEdit={() => { setEditingId(null); setEditDraft(''); }}
+                    onDraftChange={setEditDraft}
+                    onSaveEdit={saveEdit}
                     onSetLightbox={setLightboxUrl}
                   />
                 </Box>

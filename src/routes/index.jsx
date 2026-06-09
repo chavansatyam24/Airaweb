@@ -10,7 +10,7 @@ import Disputes from '../pages/Disputes/index';
 import Login from '../pages/Login/index';
 import Queue from '../pages/Queue/index';
 import Promises from '../pages/Promises/index';
-// import Report from '../pages/Report/index';
+import Report from '../pages/Report/index';
 import Settings from '../pages/Settings/index';
 import Settlement from '../pages/Settlement/index';
 import StyleReview from '../pages/StyleReview/index';
@@ -31,7 +31,7 @@ export default function AppRoutes() {
       <Route path="/clients" element={<Protected><Clients /></Protected>} />
       <Route path="/client/:id" element={<Protected><ClientDetail /></Protected>} />
       <Route path="/client/:id/overrides" element={<Protected><ClientOverrides /></Protected>} />
-      {/* <Route path="/report" element={<Protected><Report /></Protected>} /> */}
+      <Route path="/report" element={<Protected><Report /></Protected>} />
       <Route path="/promises" element={<Protected><Promises /></Protected>} />
       <Route path="/promises/:clientCode" element={<Protected><ClientPromises /></Protected>} />
       <Route path="/disputes" element={<Protected><Disputes /></Protected>} />
