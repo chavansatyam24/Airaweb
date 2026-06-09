@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const IS_LIVE = false ;
+const IS_LIVE = true ;
 export const BASE_URL = IS_LIVE ? 'https://pooja.binnysjewellery.in' : 'http://localhost:8000';
 
 const api = axios.create({
