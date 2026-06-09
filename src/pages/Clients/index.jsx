@@ -1,61 +1,38 @@
-import { ChevronRight, Search, SwapVert } from '@mui/icons-material';
+import { ChevronRight, SwapVert } from '@mui/icons-material';
 import {
   Box,
-  Chip,
   CircularProgress,
-  IconButton,
-  Menu,
-  MenuItem,
+  Drawer,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import TierBadge from '../../components/common/TierBadge';
 import { clientDueReportApi } from '../../api/index';
 import { formatINR } from '../../utils/format';
 import { Colors } from '../../theme/index';
 
+const SERIF = '"Fraunces", Georgia, serif';
+const MONO = '"JetBrains Mono", monospace';
+
 const FILTER_OPTIONS = [
-  { k: 'all', label: 'All' },
-  { k: 'A', label: 'Tier A' },
-  { k: 'B', label: 'Tier B' },
-  { k: 'C', label: 'Tier C' },
-  { k: 'blocked', label: 'Blocked' },
-  { k: 'paused', label: 'Paused' },
+  { k: 'all',     label: 'All' },
+  { k: 'A',       label: 'Tier A' },
+  { k: 'B',       label: 'Tier B' },
+  { k: 'C',       label: 'Tier C' },
+  { k: 'blocked', label: '🚫 Blocked' },
+  { k: 'paused',  label: '⏸ Paused' },
 ];
 
 const SORT_OPTIONS = [
-  { val: 'balance_desc', label: 'Balance: High → Low' },
-  { val: 'balance_asc', label: 'Balance: Low → High' },
-  { val: 'clientName_asc', label: 'Name: A → Z' },
-  { val: 'clientName_desc', label: 'Name: Z → A' },
+  { val: 'balance_desc',    label: 'Balance (High to Low)',  sub: 'Highest overdue first' },
+  { val: 'balance_asc',     label: 'Balance (Low to High)',  sub: 'Lowest overdue first' },
+  { val: 'clientName_asc',  label: 'Client Name (A → Z)',    sub: 'Alphabetical ascending' },
+  { val: 'clientName_desc', label: 'Client Name (Z → A)',    sub: 'Alphabetical descending' },
 ];
 
 const PAGE_SIZE = 15;
-
-function StatusPill({ label, variant }) {
-  const styles = {
-    blocked: { bg: '#FCE8E8', color: Colors.danger },
-    paused: { bg: '#FFF3CD', color: Colors.warning },
-    promise: { bg: '#E3F1FB', color: Colors.info },
-    default: { bg: Colors.creamAlt, color: Colors.textSecondary },
-  };
-  const s = styles[variant] || styles.default;
-  return (
-    <Box sx={{
-      display: 'inline-flex', alignItems: 'center',
-      px: 1, py: '2px', borderRadius: '99px',
-      bgcolor: s.bg, color: s.color,
-      fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.04em',
-      flexShrink: 0,
-    }}>
-      {label}
-    </Box>
-  );
-}
 
 export default function Clients() {
   const navigate = useNavigate();
@@ -63,7 +40,7 @@ export default function Clients() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('balance_desc');
-  const [sortAnchor, setSortAnchor] = useState(null);
+  const [showSortTray, setShowSortTray] = useState(false);
   const loaderRef = useRef(null);
 
   useEffect(() => {
@@ -91,6 +68,13 @@ export default function Clients() {
     return first.totalNumberOfClients ?? first.count ?? all.length;
   }, [data?.pages, all.length]);
 
+  const listSub = useMemo(() => {
+    if (totalClients === 0 && !isLoading) return 'No matches';
+    if (all.length === 0) return isLoading ? 'Loading…' : `${totalClients} total`;
+    if (all.length >= totalClients) return `${totalClients} client${totalClients === 1 ? '' : 's'}`;
+    return `${all.length} of ${totalClients}`;
+  }, [all.length, totalClients, isLoading]);
+
   useEffect(() => {
     if (!loaderRef.current) return;
     const observer = new IntersectionObserver(entries => {
@@ -102,125 +86,82 @@ export default function Clients() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header */}
-      <Box sx={{ bgcolor: Colors.navy, px: 3, py: 1.5, flexShrink: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography sx={{ color: Colors.gold, fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.2em', fontFamily: '"JetBrains Mono", monospace', mb: 0.25 }}>
-              {isLoading ? 'LOADING…' : `${totalClients} CLIENTS`}
-            </Typography>
-            <Typography sx={{ color: '#fff', fontSize: '1.375rem', fontWeight: 400, fontFamily: '"Fraunces", Georgia, serif', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
-              Clients
-            </Typography>
-          </Box>
-          <Tooltip title="Sort">
-            <IconButton
-              size="small"
-              onClick={e => setSortAnchor(e.currentTarget)}
-              sx={{
-                width: 32, height: 32, borderRadius: '8px',
-                color: sort !== 'balance_desc' ? Colors.gold : 'rgba(255,255,255,0.75)',
-                bgcolor: sortAnchor ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)',
-                border: `1px solid ${sort !== 'balance_desc' ? Colors.gold + '60' : 'rgba(255,255,255,0.2)'}`,
-                transition: 'all 0.15s',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.35)' },
-              }}
-            >
-              <SwapVert sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-          <Menu
-            anchorEl={sortAnchor}
-            open={Boolean(sortAnchor)}
-            onClose={() => setSortAnchor(null)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            PaperProps={{
-              elevation: 0,
-              sx: {
-                mt: 0.75,
-                minWidth: 210,
-                border: `1px solid ${Colors.border}`,
-                borderRadius: '12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                overflow: 'hidden',
-                '& .MuiList-root': { py: 0.75 },
-              },
-            }}
-          >
-            <Typography sx={{ px: 2, pt: 1, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', fontFamily: '"JetBrains Mono", monospace' }}>
-              SORT BY
-            </Typography>
-            {SORT_OPTIONS.map(o => (
-              <MenuItem
-                key={o.val}
-                onClick={() => { setSort(o.val); setSortAnchor(null); }}
-                sx={{
-                  mx: 0.75, borderRadius: '8px',
-                  py: 0.875, px: 1.5,
-                  fontSize: '0.8125rem',
-                  fontWeight: sort === o.val ? 700 : 400,
-                  color: sort === o.val ? Colors.navy : Colors.textPrimary,
-                  bgcolor: sort === o.val ? Colors.gold + '15' : 'transparent',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  transition: 'all 0.1s',
-                  '&:hover': { bgcolor: sort === o.val ? Colors.gold + '25' : Colors.bg },
-                }}
-              >
-                {o.label}
-                {sort === o.val && (
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: Colors.gold, ml: 1, flexShrink: 0 }} />
-                )}
-              </MenuItem>
-            ))}
-          </Menu>
+
+      {/* ── Header ── */}
+      <Box sx={{ bgcolor: Colors.navy, px: 2.5, py: 1.5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box>
+          <Typography sx={{ color: '#fff', fontSize: '1.375rem', fontWeight: 500, fontFamily: SERIF, letterSpacing: '-0.3px', lineHeight: 1.2 }}>
+            Clients
+          </Typography>
+          <Typography sx={{ color: '#aab1c0', fontSize: '0.75rem', mt: 0.25 }}>
+            {listSub}
+          </Typography>
+        </Box>
+        <Box
+          onClick={() => setShowSortTray(true)}
+          sx={{
+            p: '6px', borderRadius: '8px', cursor: 'pointer',
+            color: sort !== 'balance_desc' ? Colors.gold : 'rgba(255,255,255,0.75)',
+            bgcolor: 'rgba(255,255,255,0.08)',
+            border: `1px solid ${sort !== 'balance_desc' ? Colors.gold + '60' : 'rgba(255,255,255,0.2)'}`,
+            display: 'flex', alignItems: 'center',
+            '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
+          }}
+        >
+          <SwapVert sx={{ fontSize: 20 }} />
         </Box>
       </Box>
 
-      {/* Search */}
-      <Box sx={{ bgcolor: Colors.navyAlt, px: 2, py: 1, flexShrink: 0 }}>
+      {/* ── Search ── */}
+      <Box sx={{ bgcolor: Colors.bg, px: 2, py: 1.25, flexShrink: 0 }}>
         <TextField
           fullWidth size="small"
-          placeholder="Search by name, phone or code…"
+          placeholder="Search name or client code…"
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
-          InputProps={{ startAdornment: <Search sx={{ fontSize: 16, color: 'rgba(255,255,255,0.4)', mr: 0.75 }} /> }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              bgcolor: 'rgba(255,255,255,0.08)',
-              borderRadius: '8px',
-              '& input': { color: '#fff', fontSize: '0.8125rem', '&::placeholder': { color: 'rgba(255,255,255,0.4)', opacity: 1 } },
-              '& fieldset': { borderColor: 'rgba(255,255,255,0.15)' },
-              '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.25)' },
+              bgcolor: '#fff', borderRadius: '8px', fontSize: '0.875rem',
+              '& fieldset': { borderColor: Colors.border },
+              '&:hover fieldset': { borderColor: Colors.textMuted },
               '&.Mui-focused fieldset': { borderColor: Colors.gold },
             },
           }}
         />
       </Box>
 
-      {/* Filter chips */}
-      <Box sx={{ bgcolor: '#fff', px: 2, py: 1, display: 'flex', gap: 0.75, overflowX: 'auto', flexShrink: 0, borderBottom: `1px solid ${Colors.borderLight}` }}>
-        {FILTER_OPTIONS.map(c => (
-          <Chip
-            key={c.k}
-            label={c.label}
-            size="small"
-            onClick={() => setFilter(c.k)}
-            sx={{
-              cursor: 'pointer', flexShrink: 0,
-              height: 26, fontSize: '0.6875rem', fontWeight: 700,
-              bgcolor: filter === c.k ? Colors.navy : Colors.cardAlt,
-              color: filter === c.k ? '#fff' : Colors.textSecondary,
-              border: `1px solid ${filter === c.k ? Colors.navy : Colors.border}`,
-              borderRadius: '99px',
-              '&:hover': { bgcolor: filter === c.k ? Colors.navyAlt : Colors.bg },
-            }}
-          />
-        ))}
+      {/* ── Filter chips ── */}
+      <Box sx={{
+        bgcolor: Colors.bg, px: 2, py: 0.75,
+        display: 'flex', gap: 0.75, overflowX: 'auto', flexShrink: 0,
+        borderBottom: `1px solid ${Colors.borderLight}`,
+        '&::-webkit-scrollbar': { display: 'none' },
+      }}>
+        {FILTER_OPTIONS.map(c => {
+          const active = filter === c.k;
+          return (
+            <Box
+              key={c.k}
+              onClick={() => setFilter(c.k)}
+              sx={{
+                px: '12px', py: '6px', borderRadius: '99px',
+                bgcolor: active ? Colors.navy : '#fff',
+                border: `1px solid ${active ? Colors.navy : Colors.border}`,
+                cursor: 'pointer', flexShrink: 0,
+                transition: 'all 0.15s',
+                '&:hover': { bgcolor: active ? Colors.navyAlt : Colors.bg },
+              }}
+            >
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: active ? 700 : 500, color: active ? '#fff' : Colors.textPrimary, lineHeight: 1 }}>
+                {c.label}
+              </Typography>
+            </Box>
+          );
+        })}
       </Box>
 
-      {/* List */}
-      <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: '#fff' }}>
+      {/* ── List ── */}
+      <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: Colors.bg }}>
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
             <CircularProgress sx={{ color: Colors.gold }} />
@@ -228,55 +169,120 @@ export default function Clients() {
         ) : all.length === 0 ? (
           <Box sx={{ textAlign: 'center', pt: 10, px: 3 }}>
             <Typography sx={{ color: Colors.textSecondary, fontSize: '0.875rem' }}>
-              {debouncedSearch ? `No clients match "${debouncedSearch}".` : 'No overdue clients.'}
+              {debouncedSearch ? `No clients match "${debouncedSearch}".` : 'No overdue clients in this report.'}
             </Typography>
           </Box>
         ) : (
           <>
-            {all.map((item) => {
-              const phone = item.phone || item.customerNumber || item.phoneNumber;
-              return (
-                <Box
-                  key={item.clientCode}
-                  onClick={() => navigate(`/client/${item.clientCode}?clientName=${encodeURIComponent(item.clientName || '')}`)}
-                  sx={{
-                    display: 'flex', alignItems: 'center', gap: 1.5,
-                    px: 2, py: 1.5,
-                    cursor: 'pointer',
-                    borderBottom: `1px solid ${Colors.borderLight}`,
-                    bgcolor: '#fff',
-                    transition: 'background 0.1s',
-                    '&:hover': { bgcolor: Colors.bg },
-                  }}
-                >
-                  <TierBadge tier={item.clientTier || item.tier} size={26} />
-
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: Colors.navy, lineHeight: 1.3 }} noWrap>
-                      {item.clientName}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.6875rem', color: Colors.textMuted, mt: 0.25 }}>
-                      {item.numberOfBills ?? item.invoiceCount ?? '—'} inv
-                      {item.oldestBillPendingDays ? ` · oldest ${item.oldestBillPendingDays}d` : ''}
-                      {item.totalBalance ? ` · ₹${formatINR(item.totalBalance)}` : ''}
-                      {phone ? ` · ${phone}` : ''}
-                    </Typography>
-                  </Box>
-
-                  {item.status === 'blocked' && <StatusPill label="BLOCKED" variant="blocked" />}
-                  {item.status === 'paused' && <StatusPill label="PAUSED" variant="paused" />}
-                  {item.hasActivePromise && <StatusPill label="PROMISE" variant="promise" />}
-
-                  <ChevronRight sx={{ fontSize: 18, color: Colors.textMuted, flexShrink: 0 }} />
+            {all.map((item) => (
+              <Box
+                key={item.clientCode}
+                onClick={() => navigate(`/client/${item.clientCode}?clientName=${encodeURIComponent(item.clientName || '')}`)}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.5,
+                  px: 2, py: 1.25,
+                  bgcolor: '#fff',
+                  cursor: 'pointer',
+                  borderBottom: `1px solid ${Colors.borderLight}`,
+                  transition: 'background 0.1s',
+                  '&:hover': { bgcolor: Colors.bg },
+                  ml: 0,
+                }}
+              >
+                {/* Circle avatar */}
+                <Box sx={{
+                  width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                  bgcolor: Colors.cream, border: `2px solid ${Colors.gold}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Typography sx={{ color: Colors.gold, fontWeight: 700, fontFamily: SERIF, fontSize: '1.0625rem', lineHeight: 1 }}>
+                    {item.clientName?.[0] || '?'}
+                  </Typography>
                 </Box>
-              );
-            })}
+
+                {/* Name + meta */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: Colors.navy, fontFamily: SERIF, lineHeight: 1.3 }} noWrap>
+                    {item.clientName}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.6875rem', color: Colors.textSecondary, mt: 0.25 }}>
+                    {item.oldestBillPendingDays ? `${item.oldestBillPendingDays}d oldest` : '—'}
+                  </Typography>
+                </Box>
+
+                {/* Amount right column */}
+                <Box sx={{ alignItems: 'flex-end', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+                  <Typography sx={{
+                    fontSize: '1rem', fontWeight: 700, fontFamily: SERIF, letterSpacing: '-0.5px',
+                    color: item.totalBalance > 0 ? Colors.danger : Colors.textPrimary,
+                    lineHeight: 1.2,
+                  }}>
+                    ₹{formatINR(item.totalBalance || 0)}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, fontFamily: MONO, letterSpacing: '0.15em', mt: 0.25 }}>
+                    OVERDUE
+                  </Typography>
+                </Box>
+
+                <ChevronRight sx={{ fontSize: 18, color: Colors.textMuted, flexShrink: 0 }} />
+              </Box>
+            ))}
             <div ref={loaderRef} style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {isFetchingNextPage && <CircularProgress size={20} sx={{ color: Colors.gold }} />}
             </div>
           </>
         )}
       </Box>
+
+      {/* ── Sort bottom sheet ── */}
+      <Drawer
+        anchor="bottom"
+        open={showSortTray}
+        onClose={() => setShowSortTray(false)}
+        PaperProps={{
+          sx: {
+            borderTopLeftRadius: '20px', borderTopRightRadius: '20px',
+            px: 2.5, pt: 1.5, pb: 4,
+          },
+        }}
+      >
+        {/* Handle */}
+        <Box sx={{ width: 40, height: 4, borderRadius: '2px', bgcolor: Colors.border, mx: 'auto', mb: 2 }} />
+        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', fontFamily: MONO, mb: 1 }}>
+          SORT BY
+        </Typography>
+        {SORT_OPTIONS.map(opt => {
+          const active = sort === opt.val;
+          return (
+            <Box
+              key={opt.val}
+              onClick={() => { setSort(opt.val); setShowSortTray(false); }}
+              sx={{
+                display: 'flex', alignItems: 'center', py: 1.5,
+                borderBottom: `1px solid ${Colors.border}`,
+                cursor: 'pointer',
+                '&:last-child': { borderBottom: 'none' },
+              }}
+            >
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: active ? 700 : 600, color: active ? Colors.navy : Colors.textPrimary, mb: 0.25 }}>
+                  {opt.label}
+                </Typography>
+                <Typography sx={{ fontSize: '0.6875rem', color: Colors.textMuted }}>
+                  {opt.sub}
+                </Typography>
+              </Box>
+              <Box sx={{
+                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                border: `2px solid ${active ? Colors.success : Colors.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {active && <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: Colors.success }} />}
+              </Box>
+            </Box>
+          );
+        })}
+      </Drawer>
     </Box>
   );
 }

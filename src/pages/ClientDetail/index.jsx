@@ -110,14 +110,14 @@ function MsgBubble({ item, canWrite, approvingId, rejectingId, editingId, editDr
               {!hasTemplate && (
                 <Button size="small" variant="outlined" startIcon={<Edit sx={{ fontSize: 11 }} />}
                   onClick={() => onStartEdit(item._id, item.body || '')}
-                  sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', borderColor: Colors.border, color: Colors.textMuted, px: 1.25, borderRadius: '8px' }}>
+                  sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', borderColor: Colors.gold, color: Colors.gold, px: 1.25, borderRadius: '8px', '&:hover': { borderColor: Colors.goldLight, color: Colors.goldLight, bgcolor: Colors.gold + '12' } }}>
                   EDIT
                 </Button>
               )}
               {isAwaiting && (
                 <Button size="small" variant="contained" onClick={() => onApprove(item._id)} disabled={approvingId === item._id}
                   sx={{ height: 26, fontSize: '0.625rem', fontFamily: '"JetBrains Mono", monospace', bgcolor: Colors.success, px: 1.25, borderRadius: '8px', '&:hover': { bgcolor: Colors.success + 'e0' } }}>
-                  {approvingId === item._id ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : 'APPROVE'}
+                  {approvingId === item._id ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : 'APPROVE & SEND'}
                 </Button>
               )}
             </>

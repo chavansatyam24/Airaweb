@@ -1,4 +1,4 @@
-import { InfoOutlined, Send } from '@mui/icons-material';
+import { ArrowUpward, InfoOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -20,130 +20,222 @@ import { useAuth, useIsAdmin } from '../../store/auth';
 import { Colors } from '../../theme/index';
 import { formatTime } from '../../utils/format';
 
-const CHAT_USER_ID = '6a0437e6f077bc2cdd2ac3ba';
 const MONO = '"JetBrains Mono", monospace';
 const SERIF = '"Fraunces", Georgia, serif';
 
-function ConfirmationCard({ msg, onConfirm }) {
-  const isPending = msg.confirmationStatus === 'pending' || !msg.confirmationStatus;
-  const isApproved = msg.confirmationStatus === 'approved';
-
+// ── Typing indicator ──────────────────────────────────────────────────────────
+function TypingIndicator() {
+  const [dots, setDots] = useState('.');
+  useEffect(() => {
+    const id = setInterval(() => setDots(d => d === '...' ? '.' : d + '.'), 400);
+    return () => clearInterval(id);
+  }, []);
   return (
-    <Box sx={{
-      maxWidth: '82%',
-      bgcolor: '#fff',
-      border: `1.5px solid ${isPending ? Colors.gold + '80' : isApproved ? Colors.success + '60' : Colors.danger + '60'}`,
-      borderRadius: '18px 18px 18px 4px',
-      overflow: 'hidden',
-    }}>
-      {/* Card header */}
-      <Box sx={{ px: 1.5, pt: 1.25, pb: 0.75, bgcolor: Colors.gold + '10', borderBottom: `1px solid ${Colors.gold}30` }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
-          <Box sx={{ px: '8px', py: '2px', borderRadius: '99px', bgcolor: Colors.gold }}>
-            <Typography sx={{ fontSize: '0.4375rem', fontWeight: 700, color: Colors.navy, fontFamily: MONO, letterSpacing: '0.08em' }}>
-              {(msg.confirmationType || msg.cardType || 'CONFIRMATION').toUpperCase().replace(/_/g, ' ')}
-            </Typography>
-          </Box>
-          {msg.refNumber && (
-            <Typography sx={{ fontSize: '0.5rem', color: Colors.textMuted, fontFamily: MONO }}>
-              #{msg.refNumber}
-            </Typography>
-          )}
-          {msg.appliedToDraftsCount > 0 && (
-            <Typography sx={{ fontSize: '0.5rem', color: Colors.textMuted, fontFamily: MONO }}>
-              Applied {msg.appliedToDraftsCount}×
-            </Typography>
-          )}
-        </Box>
-      </Box>
-
-      <Box sx={{ px: 1.5, py: 1.25 }}>
-        {/* Body */}
-        {msg.body && (
-          <Typography sx={{ fontSize: '0.875rem', lineHeight: 1.6, color: Colors.textPrimary, mb: msg.ruleText || msg.interpretation || msg.diff ? 1 : 0 }}>
-            {msg.body}
-          </Typography>
-        )}
-
-        {/* Rule text */}
-        {msg.ruleText && (
-          <Box sx={{ bgcolor: Colors.cardAlt, p: 1.25, borderRadius: '6px', borderLeft: `3px solid ${Colors.gold}`, mb: 1 }}>
-            <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, fontFamily: MONO, letterSpacing: '0.1em', mb: 0.5 }}>RULE</Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: Colors.navy, lineHeight: 1.45 }}>{msg.ruleText}</Typography>
-          </Box>
-        )}
-
-        {/* Interpretation */}
-        {msg.interpretation && (
-          <Box sx={{ bgcolor: Colors.cream, p: 1.25, borderRadius: '6px', mb: 1 }}>
-            <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: '#664d03', fontFamily: MONO, letterSpacing: '0.1em', mb: 0.5 }}>INTERPRETATION</Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: '#664d03', lineHeight: 1.45, fontStyle: 'italic' }}>{msg.interpretation}</Typography>
-          </Box>
-        )}
-
-        {/* Diff box */}
-        {(msg.originalText || msg.editedText || msg.diff) && (
-          <Box sx={{ bgcolor: Colors.gold + '12', border: `1px solid ${Colors.gold}30`, borderRadius: '6px', p: 1.25, mb: 1 }}>
-            <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, fontFamily: MONO, letterSpacing: '0.1em', mb: 0.75 }}>CHANGE</Typography>
-            {msg.originalText && (
-              <Typography sx={{ fontSize: '0.6875rem', color: Colors.danger, textDecoration: 'line-through', opacity: 0.7, mb: 0.5 }} style={{ WebkitLineClamp: 2, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical' }}>
-                {msg.originalText}
-              </Typography>
-            )}
-            {msg.editedText && (
-              <Typography sx={{ fontSize: '0.6875rem', color: Colors.success, fontWeight: 600 }} style={{ WebkitLineClamp: 2, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical' }}>
-                {msg.editedText}
-              </Typography>
-            )}
-            {msg.diff && !msg.originalText && !msg.editedText && (
-              <Typography sx={{ fontSize: '0.6875rem', color: Colors.textPrimary }}>{msg.diff}</Typography>
-            )}
-          </Box>
-        )}
-
-        {/* Tags */}
-        {msg.tags?.length > 0 && (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px', mb: 1 }}>
-            {msg.tags.slice(0, 5).map(t => (
-              <Box key={t} sx={{ px: '8px', py: '2px', borderRadius: '6px', bgcolor: Colors.cardAlt, border: `1px solid ${Colors.borderLight}` }}>
-                <Typography sx={{ fontSize: '0.4375rem', color: Colors.textSecondary, fontWeight: 600, fontFamily: MONO }}>{t}</Typography>
-              </Box>
-            ))}
-          </Box>
-        )}
-
-        {/* Timestamp */}
-        <Typography sx={{ fontSize: '0.5rem', color: Colors.textMuted, textAlign: 'right', mb: isPending ? 1 : 0 }}>
-          {formatTime(msg.createdAt)}
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1.5 }}>
+      <Box sx={{
+        bgcolor: '#fff', border: `1px solid ${Colors.border}`,
+        borderRadius: '18px 18px 18px 4px',
+        px: 2, py: 1.25, minWidth: 52,
+      }}>
+        <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: 4, lineHeight: 1.2 }}>
+          {dots}
         </Typography>
-
-        {/* Actions */}
-        {isPending && (
-          <Box sx={{ display: 'flex', gap: 0.75 }}>
-            <Button size="small" variant="outlined" onClick={() => onConfirm(msg._id, false)}
-              sx={{ flex: 1, height: 28, fontSize: '0.625rem', fontFamily: MONO, borderColor: Colors.danger, color: Colors.danger }}>
-              Reject
-            </Button>
-            <Button size="small" variant="contained" onClick={() => onConfirm(msg._id, true)}
-              sx={{ flex: 1, height: 28, fontSize: '0.625rem', fontFamily: MONO, bgcolor: Colors.success, '&:hover': { bgcolor: Colors.success + 'e0' } }}>
-              Approve
-            </Button>
-          </Box>
-        )}
-
-        {!isPending && msg.confirmationStatus && (
-          <Chip
-            label={isApproved ? '✓ Approved' : '✗ Rejected'}
-            size="small"
-            sx={{ height: 20, fontSize: '0.5625rem', bgcolor: isApproved ? Colors.success + '18' : Colors.danger + '18', color: isApproved ? Colors.success : Colors.danger }}
-          />
-        )}
       </Box>
     </Box>
   );
 }
 
-function InstructionPanel({ open, onClose }) {
+// ── Inline markdown renderer ──────────────────────────────────────────────────
+function renderInline(text, isUser) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g);
+  const textColor = isUser ? '#fff' : Colors.textPrimary;
+  const mutedColor = isUser ? 'rgba(255,255,255,0.65)' : Colors.textMuted;
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**'))
+      return <Typography key={i} component="span" sx={{ fontWeight: 700, color: textColor }}>{part.slice(2, -2)}</Typography>;
+    if (part.startsWith('*') && part.endsWith('*'))
+      return <Typography key={i} component="span" sx={{ fontWeight: 700, color: textColor }}>{part.slice(1, -1)}</Typography>;
+    if (part.startsWith('_') && part.endsWith('_'))
+      return <Typography key={i} component="span" sx={{ fontStyle: 'italic', color: mutedColor }}>{part.slice(1, -1)}</Typography>;
+    return <Typography key={i} component="span">{part}</Typography>;
+  });
+}
+
+function renderBody(text, isUser) {
+  if (!text) return null;
+  const LABEL_RE = /^\*[^*]+:\*/;
+  const groups = [];
+  for (const line of text.split('\n')) {
+    const isLabel = LABEL_RE.test(line);
+    const last = groups[groups.length - 1];
+    if (isLabel) {
+      if (last?.kind === 'labels') last.lines.push(line);
+      else groups.push({ kind: 'labels', lines: [line] });
+    } else {
+      if (last?.kind === 'text') last.lines.push(line);
+      else groups.push({ kind: 'text', lines: [line] });
+    }
+  }
+  return (
+    <Box>
+      {groups.map((g, gi) =>
+        g.kind === 'labels' ? (
+          <Box key={gi} sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', my: '1px' }}>
+            {g.lines.map((line, li) => (
+              <Box key={li} sx={{ display: 'contents' }}>
+                {li > 0 && <Typography component="span" sx={{ color: Colors.textMuted, fontSize: '0.75rem' }}>·</Typography>}
+                <Typography component="span" sx={{ fontSize: '0.875rem', lineHeight: 1.6, color: isUser ? '#fff' : Colors.textPrimary }}>
+                  {renderInline(line, isUser)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Typography key={gi} sx={{ fontSize: '0.875rem', lineHeight: 1.6, color: isUser ? '#fff' : Colors.textPrimary }}>
+            {g.lines.map((line, li) => (
+              <Box key={li} component="span">
+                {li > 0 ? '\n' : ''}
+                {renderInline(line, isUser)}
+              </Box>
+            ))}
+          </Typography>
+        )
+      )}
+    </Box>
+  );
+}
+
+// ── Instruction panel (inside confirmation bubble) ────────────────────────────
+const INSTRUCTION_TYPE_LABEL = {
+  global_style: 'Global Style',
+  client_rule: 'Client Rule',
+  constitution_amendment: 'Constitution',
+  query: 'Query',
+};
+
+function InstructionPanel({ msg }) {
+  const d = msg.instructionDetails;
+  if (!d) return null;
+  return (
+    <Box sx={{ mt: 1.5, bgcolor: 'rgba(0,0,0,0.05)', borderRadius: '10px', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      {/* Header row */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+        {msg.instructionType && (
+          <Box sx={{
+            px: '7px', py: '3px', borderRadius: '99px',
+            bgcolor: msg.instructionType === 'constitution_amendment' ? '#E8EAF6' : Colors.gold + '25',
+          }}>
+            <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, fontFamily: MONO, letterSpacing: '0.05em', textTransform: 'uppercase', color: msg.instructionType === 'constitution_amendment' ? '#3949AB' : Colors.gold }}>
+              {INSTRUCTION_TYPE_LABEL[msg.instructionType] ?? msg.instructionType}
+            </Typography>
+          </Box>
+        )}
+        {d.refNumber && <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: Colors.navy }}>{d.refNumber}</Typography>}
+        {d.clientName && <Typography sx={{ fontSize: '0.6875rem', color: Colors.textSecondary }}>· {d.clientName}</Typography>}
+      </Box>
+
+      {/* Instruction text */}
+      {(d.ruleText ?? d.instructionText) && (
+        <Typography sx={{ fontSize: '0.8125rem', color: Colors.textPrimary, lineHeight: 1.45 }}>
+          {d.ruleText ?? d.instructionText}
+        </Typography>
+      )}
+
+      {/* Interpretation */}
+      {d.interpretation && (
+        <Box sx={{ bgcolor: '#F3F4FF', borderRadius: '6px', p: 1.25 }}>
+          <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, fontFamily: MONO, letterSpacing: '0.08em', color: '#3949AB', mb: 0.5 }}>INTERPRETATION</Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: '#3949AB', lineHeight: 1.45, fontStyle: 'italic' }}>{d.interpretation}</Typography>
+        </Box>
+      )}
+
+      {/* Diff */}
+      {(d.diff ?? d.constitutionDiff) && (
+        <Box sx={{ bgcolor: '#FFF8E1', borderRadius: '6px', borderLeft: `3px solid ${Colors.gold}`, p: 1.25 }}>
+          <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, fontFamily: MONO, letterSpacing: '0.08em', color: Colors.gold, mb: 0.5 }}>CHANGE</Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: Colors.textPrimary, lineHeight: 1.45, fontFamily: MONO }}>{d.diff ?? d.constitutionDiff}</Typography>
+        </Box>
+      )}
+
+      {/* Tags */}
+      {d.tags?.length > 0 && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          {d.tags.map(tag => (
+            <Box key={tag} sx={{ bgcolor: Colors.border, px: '7px', py: '2px', borderRadius: '99px' }}>
+              <Typography sx={{ fontSize: '0.5625rem', color: Colors.textSecondary, fontWeight: 500 }}>{tag}</Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// ── Message bubble ────────────────────────────────────────────────────────────
+function MessageBubble({ msg, onConfirm }) {
+  const isUser = msg.sender === 'user';
+  const isConfirmation = msg.cardType === 'confirmation';
+  const isSystemInfo = msg.cardType === 'system_info';
+  const isPending = isConfirmation && msg.confirmationStatus === 'pending';
+  const isConfirmed = msg.confirmationStatus === 'confirmed';
+  const isRejected = msg.confirmationStatus === 'rejected';
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', mb: 1.5 }}>
+      {!isUser && (
+        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: Colors.gold, mb: 0.25, letterSpacing: '0.12em', fontFamily: MONO }}>
+          AIRA{isConfirmation ? ' · CONFIRMATION' : ''}
+        </Typography>
+      )}
+      <Box sx={{
+        maxWidth: '82%',
+        bgcolor: isUser ? '#005C4B' : isConfirmation ? '#FFF8E7' : isSystemInfo ? Colors.success + '15' : '#fff',
+        border: isUser ? 'none'
+          : isConfirmation ? `2px solid ${Colors.gold}`
+          : isSystemInfo ? `1px solid ${Colors.success}40`
+          : `1px solid ${Colors.border}`,
+        borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+        px: 2, py: 1.25,
+        overflow: 'hidden',
+      }}>
+        {renderBody(msg.body ?? '', isUser)}
+
+        {/* Instruction details panel for confirmation cards */}
+        {isConfirmation && <InstructionPanel msg={msg} />}
+
+        {/* Confirm / Reject actions */}
+        {isPending && (
+          <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
+            <Button size="small" variant="outlined" onClick={() => onConfirm(msg._id, false)}
+              sx={{ flex: 1, height: 32, fontSize: '0.8125rem', fontWeight: 700, borderColor: Colors.danger, color: Colors.danger, borderRadius: '8px' }}>
+              No, try again
+            </Button>
+            <Button size="small" variant="contained" onClick={() => onConfirm(msg._id, true)}
+              sx={{ flex: 1, height: 32, fontSize: '0.8125rem', fontWeight: 700, bgcolor: Colors.success, '&:hover': { bgcolor: Colors.success + 'dd' }, borderRadius: '8px' }}>
+              Yes, apply
+            </Button>
+          </Box>
+        )}
+
+        {/* Status badge after action */}
+        {(isConfirmed || isRejected) && (
+          <Box sx={{ mt: 1, px: '8px', py: '4px', borderRadius: '6px', display: 'inline-flex', bgcolor: isConfirmed ? Colors.success + '15' : Colors.danger + '15', alignSelf: 'flex-start' }}>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, fontFamily: MONO, color: isConfirmed ? Colors.success : Colors.danger }}>
+              {isConfirmed ? '✓ APPLIED' : '✗ REJECTED'}
+            </Typography>
+          </Box>
+        )}
+
+        <Typography sx={{ fontSize: '0.5rem', color: isUser ? 'rgba(255,255,255,0.5)' : Colors.textMuted, mt: 0.75, textAlign: 'right' }}>
+          {formatTime(msg.createdAt)}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+// ── Active instructions drawer ────────────────────────────────────────────────
+function ActiveInstructionsDrawer({ open, onClose }) {
   const { data, isLoading } = useQuery({
     queryKey: ['pooja-instructions'],
     queryFn: () => poojaChatApi.instructions({ limit: 50 }),
@@ -155,7 +247,7 @@ function InstructionPanel({ open, onClose }) {
     <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: 320, bgcolor: Colors.bg } }}>
       <Box sx={{ bgcolor: Colors.navy, px: 2, py: 1.5 }}>
         <Typography sx={{ color: Colors.gold, fontSize: '0.5rem', fontWeight: 700, fontFamily: MONO, letterSpacing: '0.15em', mb: 0.25 }}>ACTIVE INSTRUCTIONS</Typography>
-        <Typography sx={{ color: '#fff', fontSize: '1rem', fontFamily: SERIF }}>Pooja's Rules</Typography>
+        <Typography sx={{ color: '#fff', fontSize: '1rem', fontFamily: SERIF }}>Aira's Rules</Typography>
       </Box>
       <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5 }}>
         {isLoading ? (
@@ -182,12 +274,17 @@ function InstructionPanel({ open, onClose }) {
   );
 }
 
+// ── Main ──────────────────────────────────────────────────────────────────────
+const CHAT_USER_ID = '6a0437e6f077bc2cdd2ac3ba';
+
 export default function Chat() {
   const isAdmin = useIsAdmin();
   const user = useAuth(s => s.user);
   const userId = user?.id || CHAT_USER_ID;
+  const firstName = user?.name?.split(' ')[0] || user?.username || 'there';
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [optimisticMsg, setOptimisticMsg] = useState(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'error' });
   const chatEndRef = useRef(null);
@@ -196,26 +293,32 @@ export default function Chat() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['pooja-chat', userId],
     queryFn: () => poojaChatApi.messages(userId, 100),
-    refetchInterval: 10000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchInterval: 30000,
   });
   const messages = data?.messages ?? [];
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+  }, [messages.length, sending]);
 
   const sendMsg = async () => {
     const text = input.trim();
-    if (!text) return;
-    setSending(true);
+    if (!text || sending) return;
     setInput('');
+    setOptimisticMsg({ body: text, time: formatTime(new Date()) });
+    setSending(true);
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
     try {
       await poojaChatApi.send(text, userId);
       await refetch();
     } catch (err) {
       setSnack({ open: true, msg: err?.response?.data?.message || 'Could not send', severity: 'error' });
+      setInput(text);
     } finally {
       setSending(false);
+      setOptimisticMsg(null);
     }
   };
 
@@ -223,7 +326,8 @@ export default function Chat() {
     try {
       await poojaChatApi.confirm(msgId, userId, approved);
       await refetch();
-      qc.invalidateQueries({ queryKey: ['pooja-chat'] });
+      qc.invalidateQueries({ queryKey: ['knowledge'] });
+      qc.invalidateQueries({ queryKey: ['brain-constitution'] });
     } catch {
       setSnack({ open: true, msg: 'Could not confirm', severity: 'error' });
     }
@@ -231,104 +335,131 @@ export default function Chat() {
 
   if (!isAdmin) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', bgcolor: Colors.bg, gap: 2 }}>
-        <Typography sx={{ fontSize: '2.5rem' }}>🔒</Typography>
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: Colors.navy, fontFamily: SERIF }}>Admin Only</Typography>
-        <Typography sx={{ fontSize: '0.875rem', color: Colors.textSecondary }}>You need admin access to use Chat with Pooja.</Typography>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <Box sx={{ bgcolor: Colors.navy, px: 3, py: 1.5, flexShrink: 0 }}>
+          <Typography sx={{ color: Colors.gold, fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.2em', fontFamily: MONO, mb: 0.25 }}>TRAIN AIRA</Typography>
+          <Typography sx={{ color: '#fff', fontSize: '1.375rem', fontWeight: 400, fontFamily: SERIF, lineHeight: 1.1 }}>Chat with Aira</Typography>
+        </Box>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: Colors.bg, px: 4, gap: 1.5 }}>
+          <Typography sx={{ fontSize: '3.75rem', lineHeight: 1 }}>🔒</Typography>
+          <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: Colors.navy, fontFamily: SERIF }}>Admin Only</Typography>
+          <Typography sx={{ fontSize: '0.875rem', color: Colors.textSecondary, textAlign: 'center', lineHeight: 1.6, maxWidth: 320 }}>
+            Only Sneh can chat with Aira in this phase. Phase 2 will open this up to other teachers.
+          </Typography>
+        </Box>
       </Box>
     );
   }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header */}
-      <Box sx={{ bgcolor: Colors.navy, px: 3, py: 1.5, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+
+      {/* ── Header ── */}
+      <Box sx={{ bgcolor: Colors.navy, px: 2.5, py: 1.25, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        {/* Gold avatar */}
+        <Box sx={{
+          width: 40, height: 40, borderRadius: '50%', bgcolor: Colors.gold,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <Typography sx={{ color: '#fff', fontSize: '1.125rem', fontWeight: 700, fontFamily: SERIF, fontStyle: 'italic', lineHeight: 1 }}>A</Typography>
+        </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ color: Colors.gold, fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.2em', fontFamily: MONO, mb: 0.25 }}>
-            TRAIN AIRA
-          </Typography>
-          <Typography sx={{ color: '#fff', fontSize: '1.375rem', fontWeight: 400, fontFamily: SERIF, letterSpacing: '-0.3px', lineHeight: 1.1 }}>
-            Chat with Pooja
-          </Typography>
+          <Typography sx={{ color: '#fff', fontSize: '1.0625rem', fontWeight: 700, lineHeight: 1.2 }}>Aira</Typography>
+          <Typography sx={{ color: Colors.success, fontSize: '0.6875rem', fontWeight: 500, lineHeight: 1.3 }}>AR Agent · Online</Typography>
         </Box>
         <Tooltip title="View active instructions">
-          <IconButton size="small" sx={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => setShowInstructions(true)}>
-            <InfoOutlined fontSize="small" />
+          <IconButton size="small" sx={{ color: 'rgba(255,255,255,0.6)', '&:hover': { color: '#fff' } }} onClick={() => setShowInstructions(true)}>
+            <InfoOutlined sx={{ fontSize: 18 }} />
           </IconButton>
         </Tooltip>
       </Box>
 
-      {/* Messages */}
+      {/* ── Messages ── */}
       <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: Colors.bg, py: 1.5, px: 2 }}>
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}><CircularProgress sx={{ color: Colors.gold }} /></Box>
-        ) : messages.length === 0 ? (
-          <Box sx={{ textAlign: 'center', pt: 8 }}>
-            <Typography sx={{ color: Colors.textMuted, fontSize: '0.875rem' }}>Start a conversation with Pooja</Typography>
+        ) : messages.length === 0 && !optimisticMsg && !sending ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60%', gap: 1 }}>
+            <Typography sx={{ fontSize: '3.125rem', lineHeight: 1 }}>👋</Typography>
+            <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: Colors.navy, fontFamily: SERIF, textAlign: 'center', mt: 0.5 }}>
+              Hi {firstName}, talk to me anytime.
+            </Typography>
+            <Typography sx={{ fontSize: '0.875rem', color: Colors.textSecondary, textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
+              Train my style, set rules for specific clients, or ask me anything about the AR system.
+            </Typography>
           </Box>
         ) : (
-          messages.map((msg, idx) => {
-            const isUser = msg.sender === 'user';
-            const isConfirmation = msg.cardType === 'confirmation';
-            const prevDate = idx > 0 ? new Date(messages[idx - 1].createdAt).toDateString() : null;
-            const thisDate = new Date(msg.createdAt).toDateString();
-            return (
-              <Box key={msg._id}>
-                {prevDate !== thisDate && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', my: 1.5 }}>
-                    <Divider sx={{ flex: 1 }} />
-                    <Typography sx={{ mx: 2, fontSize: '0.625rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.08em', fontFamily: MONO }}>
-                      {new Date(msg.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                    </Typography>
-                    <Divider sx={{ flex: 1 }} />
-                  </Box>
-                )}
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', mb: 1.5 }}>
-                  {!isUser && (
-                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: Colors.gold, mb: 0.25, letterSpacing: '0.12em', fontFamily: MONO }}>POOJA</Typography>
-                  )}
-                  {isConfirmation && !isUser ? (
-                    <ConfirmationCard msg={msg} onConfirm={confirm} />
-                  ) : (
-                    <Box sx={{
-                      maxWidth: '75%',
-                      bgcolor: isUser ? Colors.navy : '#fff',
-                      color: isUser ? '#fff' : Colors.textPrimary,
-                      border: isUser ? 'none' : `1px solid ${Colors.border}`,
-                      borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                      px: 2, py: 1.25,
-                    }}>
-                      <Typography sx={{ fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'inherit' }}>{msg.body}</Typography>
-                      <Typography sx={{ fontSize: '0.5625rem', color: isUser ? 'rgba(255,255,255,0.5)' : Colors.textMuted, mt: 0.5, textAlign: 'right' }}>
-                        {formatTime(msg.createdAt)}
+          <>
+            {messages.map((msg, idx) => {
+              const prevDate = idx > 0 ? new Date(messages[idx - 1].createdAt).toDateString() : null;
+              const thisDate = new Date(msg.createdAt).toDateString();
+              return (
+                <Box key={msg._id}>
+                  {prevDate !== thisDate && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', my: 1.5 }}>
+                      <Divider sx={{ flex: 1 }} />
+                      <Typography sx={{ mx: 2, fontSize: '0.5625rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.08em', fontFamily: MONO }}>
+                        {new Date(msg.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                       </Typography>
+                      <Divider sx={{ flex: 1 }} />
                     </Box>
                   )}
+                  <MessageBubble msg={msg} onConfirm={confirm} />
+                </Box>
+              );
+            })}
+
+            {/* Optimistic user message */}
+            {optimisticMsg && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', mb: 1.5 }}>
+                <Box sx={{ maxWidth: '82%', bgcolor: '#005C4B', borderRadius: '18px 18px 4px 18px', px: 2, py: 1.25 }}>
+                  <Typography sx={{ fontSize: '0.875rem', lineHeight: 1.6, color: '#fff', whiteSpace: 'pre-wrap' }}>{optimisticMsg.body}</Typography>
+                  <Typography sx={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.5)', mt: 0.75, textAlign: 'right' }}>{optimisticMsg.time}</Typography>
                 </Box>
               </Box>
-            );
-          })
+            )}
+
+            {/* Typing indicator */}
+            {sending && <TypingIndicator />}
+          </>
         )}
         <div ref={chatEndRef} />
       </Box>
 
-      {/* Input */}
-      <Box sx={{ bgcolor: '#fff', borderTop: `1px solid ${Colors.border}`, px: 2, py: 1.5, display: 'flex', gap: 1, alignItems: 'flex-end', flexShrink: 0 }}>
+      {/* ── Input bar ── */}
+      <Box sx={{ bgcolor: '#F0F0F0', borderTop: `1px solid ${Colors.border}`, px: 1.5, py: 1, display: 'flex', gap: 1, alignItems: 'flex-end', flexShrink: 0 }}>
         <TextField
-          fullWidth multiline maxRows={4} size="small"
-          placeholder="Message Pooja…"
+          fullWidth multiline maxRows={5} size="small"
+          placeholder="Tell Aira what to do or ask anything..."
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }}
-          sx={{ '& .MuiOutlinedInput-root': { bgcolor: Colors.bg } }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              bgcolor: '#fff', borderRadius: '20px', fontSize: '0.875rem',
+              '& fieldset': { borderColor: Colors.border },
+            },
+          }}
         />
-        <IconButton onClick={sendMsg} disabled={!input.trim() || sending}
-          sx={{ bgcolor: Colors.navy, color: '#fff', '&:hover': { bgcolor: Colors.navyAlt ?? Colors.navy }, '&.Mui-disabled': { bgcolor: Colors.border }, flexShrink: 0 }}>
-          {sending ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : <Send fontSize="small" />}
-        </IconButton>
+        <Box
+          onClick={(!input.trim() || sending) ? undefined : sendMsg}
+          sx={{
+            width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+            bgcolor: input.trim() && !sending ? Colors.gold : Colors.border,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: input.trim() && !sending ? 'pointer' : 'default',
+            transition: 'background 0.15s',
+            boxShadow: input.trim() && !sending ? '0 2px 8px rgba(184,134,11,0.35)' : 'none',
+          }}
+        >
+          {sending
+            ? <CircularProgress size={18} sx={{ color: '#fff' }} />
+            : <ArrowUpward sx={{ fontSize: 20, color: '#fff' }} />
+          }
+        </Box>
       </Box>
 
-      <InstructionPanel open={showInstructions} onClose={() => setShowInstructions(false)} />
+      <ActiveInstructionsDrawer open={showInstructions} onClose={() => setShowInstructions(false)} />
 
       <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack(s => ({ ...s, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))}>{snack.msg}</Alert>

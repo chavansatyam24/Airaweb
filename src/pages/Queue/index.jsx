@@ -1,8 +1,12 @@
 import {
+  ArrowBack,
   CheckCircle,
+  ChevronRight,
   Close,
   Edit,
   ForumOutlined,
+  KeyboardArrowDown,
+  KeyboardArrowUp,
   Lock,
   LockOpen,
   Refresh,
@@ -88,6 +92,8 @@ export default function Queue() {
   const [editingAmount, setEditingAmount] = useState(null);
   const [draftAmount, setDraftAmount] = useState('');
   const [savingAmountId, setSavingAmountId] = useState(null);
+  const [expandedFieldsId, setExpandedFieldsId] = useState(null);
+  const [selectedFieldIdx, setSelectedFieldIdx] = useState(null);
   const loaderRef = useRef(null);
 
   useEffect(() => {
@@ -113,6 +119,7 @@ export default function Queue() {
   }, [data?.pages]);
 
   const total = data?.pages[0]?.pagination?.total ?? items.length;
+  const showEditOption = data?.pages?.length ? !!(data.pages[data.pages.length - 1]?.showEditOption) : false;
 
   useEffect(() => {
     if (!loaderRef.current) return;
@@ -269,11 +276,11 @@ export default function Queue() {
             Approval Queue
           </Typography>
         </Box>
-        <Tooltip title={safeScroll ? 'Unlock auto-scroll' : 'Lock scroll position'}>
+        {/* <Tooltip title={safeScroll ? 'Unlock auto-scroll' : 'Lock scroll position'}>
           <IconButton size="small" sx={{ color: safeScroll ? Colors.gold : 'rgba(255,255,255,0.6)' }} onClick={() => setSafeScroll(v => !v)}>
             {safeScroll ? <Lock fontSize="small" /> : <LockOpen fontSize="small" />}
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
         <Tooltip title="Held messages">
           <IconButton size="small" sx={{ color: '#fff' }} onClick={() => navigate('/held')}>
             <Timer fontSize="small" />
@@ -421,13 +428,14 @@ export default function Queue() {
                 item={item}
                 canWrite={canWrite}
                 safeScroll={safeScroll}
+                expandedFieldsId={expandedFieldsId}
+                selectedFieldIdx={selectedFieldIdx}
                 editingId={editingId}
                 draftBody={draftBody}
                 editorReason={editorReason}
                 savingBodyId={savingBodyId}
                 approvingId={approvingId}
                 rejectingId={rejectingId}
-                editingAmount={editingAmount}
                 draftAmount={draftAmount}
                 savingAmountId={savingAmountId}
                 regeneratingConvId={regeneratingConvId}
@@ -436,16 +444,22 @@ export default function Queue() {
                 onCancelEdit={cancelEdit}
                 onDraftChange={setDraftBody}
                 onReasonChange={setEditorReason}
-                onSaveBody={saveBody}
                 onSaveAndSend={saveAndSend}
                 onApprove={approve}
                 onReject={reject}
                 onSetLightbox={setLightboxUrl}
                 onViewThread={(id, clientCode, clientName) => navigate(`/client/${clientCode}?conversationId=${id}&clientName=${encodeURIComponent(clientName || '')}`)}
                 onRegenSingle={(convId) => { setPendingRegenConvId(convId); setShowRegenSingle(true); }}
-                onOpenInternalTray={(item) => setInternalTrayItem(item)}
-                onEditAmount={(id, idx) => { setEditingAmount({ id, idx }); setDraftAmount(''); }}
-                onCancelAmount={() => { setEditingAmount(null); setDraftAmount(''); }}
+                onOpenInternalTray={(it) => setInternalTrayItem(it)}
+                onToggleFields={(id) => {
+                  if (expandedFieldsId === id) {
+                    setExpandedFieldsId(null); setSelectedFieldIdx(null); setEditingAmount(null); setDraftAmount('');
+                  } else {
+                    setExpandedFieldsId(id); setSelectedFieldIdx(null); setEditingAmount(null); setDraftAmount('');
+                  }
+                }}
+                onSelectField={(id, idx, val) => { setSelectedFieldIdx(idx); setEditingAmount({ id, idx }); setDraftAmount(val); }}
+                onBackToFields={() => { setSelectedFieldIdx(null); setEditingAmount(null); setDraftAmount(''); }}
                 onDraftAmountChange={setDraftAmount}
                 onSaveAmount={saveAmount}
               />
@@ -591,11 +605,13 @@ export default function Queue() {
 }
 
 function ApprovalCard({
-  item, canWrite, editingId, draftBody, editorReason, savingBodyId,
-  approvingId, rejectingId, editingAmount, draftAmount, savingAmountId, regeneratingConvId,
+  item, canWrite, safeScroll,
+  expandedFieldsId, selectedFieldIdx,
+  editingId, draftBody, editorReason, savingBodyId,
+  approvingId, rejectingId, draftAmount, savingAmountId, regeneratingConvId,
   onStartEdit, onCancelEdit, onDraftChange, onReasonChange, onSaveAndSend,
   onApprove, onReject, onSetLightbox, onViewThread, onRegenSingle,
-  onEditAmount, onCancelAmount, onDraftAmountChange, onSaveAmount, onOpenInternalTray,
+  onToggleFields, onSelectField, onBackToFields, onDraftAmountChange, onSaveAmount, onOpenInternalTray,
 }) {
   const isEditing = editingId === item._id;
 
@@ -693,47 +709,131 @@ function ApprovalCard({
         ))}
       </Box>
 
-      {/* ── Placeholder editors ── */}
-      {(() => {
+      {/* ── Placeholder editors (collapsible) ── */}
+      {!safeScroll && (() => {
         const placeholders = item.metadata?.templateData?.body?.placeholders;
         if (!Array.isArray(placeholders) || placeholders.length === 0 || !canWrite) return null;
         const templateFields = item.templateFields ?? item.metadata?.templateData?.variableValues ?? {};
         const valueToKey = {};
         Object.entries(templateFields).forEach(([k, v]) => { if (!valueToKey[String(v)]) valueToKey[String(v)] = k; });
-        return placeholders.map((current, idx) => {
-          const isEditingAmt = editingAmount?.id === item._id && editingAmount?.idx === idx;
-          const isSaving = savingAmountId === item._id;
-          const fieldName = valueToKey[current] ?? null;
-          return (
-            <Box key={idx} sx={{ display: 'flex', alignItems: 'center', bgcolor: Colors.gold + '10', border: `1px solid ${Colors.gold}30`, borderRadius: 1, p: 1, mb: 0.75, gap: 1, position: 'relative' }}>
-              <Typography sx={{ position: 'absolute', top: -8, left: 8, fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, fontFamily: '"JetBrains Mono", monospace', bgcolor: Colors.cardAlt, px: '4px', borderRadius: '2px' }}>
-                {fieldName ?? `#${idx + 1}`}
+        const isExpanded = expandedFieldsId === item._id;
+        const isSaving = savingAmountId === item._id;
+        return (
+          <Box sx={{ mb: 1.5, border: `1px solid ${Colors.gold}35`, borderRadius: '10px', overflow: 'hidden' }}>
+            {/* Toggle header */}
+            <Box
+              onClick={() => onToggleFields(item._id)}
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 1,
+                px: 1.5, py: 1,
+                bgcolor: Colors.gold + '12',
+                cursor: 'pointer',
+                borderBottom: isExpanded ? `1px solid ${Colors.gold}25` : 'none',
+                '&:hover': { bgcolor: Colors.gold + '20' },
+                transition: 'background 0.15s',
+                userSelect: 'none',
+              }}
+            >
+              <Edit sx={{ fontSize: 14, color: Colors.gold }} />
+              <Typography sx={{ flex: 1, fontSize: '0.6875rem', fontWeight: 700, color: Colors.gold, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.06em' }}>
+                EDIT TEMPLATE FIELDS
               </Typography>
-              {isEditingAmt ? (
-                <>
-                  <TextField size="small" value={draftAmount} onChange={e => onDraftAmountChange(e.target.value)} autoFocus sx={{ flex: 1 }} />
-                  <IconButton size="small" onClick={onCancelAmount}><Close fontSize="small" /></IconButton>
-                  <Button size="small" variant="contained" onClick={() => onSaveAmount(item._id, idx)} disabled={isSaving}
-                    sx={{ bgcolor: Colors.gold, '&:hover': { bgcolor: Colors.goldLight }, height: 28 }}>
-                    {isSaving ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'Update'}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Typography sx={{ flex: 1, fontSize: '0.8125rem', fontWeight: 600, color: Colors.navy }} noWrap>{current}</Typography>
-                  <Button size="small" startIcon={<Edit sx={{ fontSize: 12 }} />} onClick={() => onEditAmount(item._id, idx)}
-                    sx={{ height: 22, fontSize: '0.5625rem', fontWeight: 700, color: Colors.gold, border: `1px solid ${Colors.gold}60`, borderRadius: 99, px: 1 }}>
-                    Edit
-                  </Button>
-                </>
-              )}
+              <Box sx={{ px: '7px', py: '2px', borderRadius: '99px', bgcolor: Colors.gold, mr: 0.5, display: 'flex', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#fff', fontFamily: '"JetBrains Mono", monospace', lineHeight: 1.5 }}>
+                  {placeholders.length}
+                </Typography>
+              </Box>
+              {isExpanded
+                ? <KeyboardArrowUp sx={{ fontSize: 18, color: Colors.gold }} />
+                : <KeyboardArrowDown sx={{ fontSize: 18, color: Colors.gold }} />}
             </Box>
-          );
-        });
+
+            {isExpanded && (
+              selectedFieldIdx === null ? (
+                /* Field picker list */
+                <Box sx={{ bgcolor: '#fff' }}>
+                  <Typography sx={{ px: 1.5, pt: 1, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.12em' }}>
+                    WHICH FIELD TO EDIT?
+                  </Typography>
+                  {placeholders.map((current, idx) => {
+                    const fieldName = valueToKey[current] ?? `Field #${idx + 1}`;
+                    return (
+                      <Box
+                        key={idx}
+                        onClick={() => onSelectField(item._id, idx, current)}
+                        sx={{
+                          display: 'flex', alignItems: 'center',
+                          px: 1.5, py: 1,
+                          borderTop: `1px solid ${Colors.border}`,
+                          cursor: 'pointer',
+                          '&:hover': { bgcolor: Colors.bg },
+                          transition: 'background 0.1s',
+                        }}
+                      >
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: Colors.navy, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.04em', mb: 0.25 }}>
+                            {fieldName}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.8125rem', color: Colors.textSecondary }} noWrap>
+                            {current}
+                          </Typography>
+                        </Box>
+                        <ChevronRight sx={{ fontSize: 16, color: Colors.gold, flexShrink: 0 }} />
+                      </Box>
+                    );
+                  })}
+                </Box>
+              ) : (
+                /* Field edit panel */
+                (() => {
+                  const idx = selectedFieldIdx;
+                  const current = placeholders[idx];
+                  const fieldName = valueToKey[current] ?? `Field #${idx + 1}`;
+                  return (
+                    <Box sx={{ bgcolor: '#fff', p: 1.5 }}>
+                      <Box
+                        onClick={onBackToFields}
+                        sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.25, cursor: 'pointer', width: 'fit-content', '&:hover': { opacity: 0.7 } }}
+                      >
+                        <ArrowBack sx={{ fontSize: 14, color: Colors.gold }} />
+                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: Colors.gold, fontFamily: '"JetBrains Mono", monospace' }}>
+                          All fields
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: Colors.navy, fontFamily: '"JetBrains Mono", monospace', mb: 0.25 }}>
+                        {fieldName}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: Colors.textMuted, mb: 1.25 }}>
+                        Current: {current}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                          size="small" autoFocus
+                          value={draftAmount}
+                          onChange={e => onDraftAmountChange(e.target.value)}
+                          placeholder={current}
+                          sx={{ flex: 1, '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
+                        />
+                        <Button
+                          variant="contained" size="small"
+                          disabled={isSaving}
+                          onClick={async () => { await onSaveAmount(item._id, idx); onBackToFields(); }}
+                          sx={{ bgcolor: Colors.gold, '&:hover': { bgcolor: Colors.goldLight }, height: 40, px: 2, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem', flexShrink: 0 }}
+                        >
+                          {isSaving ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'Update'}
+                        </Button>
+                      </Box>
+                    </Box>
+                  );
+                })()
+              )
+            )}
+          </Box>
+        );
       })()}
 
       {/* ── Actions ── */}
-      {canWrite && (
+      {canWrite && !safeScroll && (
         <Box>
           {isEditing ? (
             <Stack gap={2}>

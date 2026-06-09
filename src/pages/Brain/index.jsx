@@ -1,9 +1,8 @@
-import { Check, Delete, FilterList, Search } from '@mui/icons-material';
+import { Analytics, Apps, Check, Delete, FilterList, List, School } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   MenuItem,
   Paper,
@@ -27,20 +26,26 @@ const OUTER_TABS = [
 ];
 
 const TYPE_CHIPS = [
-  { k: undefined, label: 'All' },
-  { k: 'pattern', label: 'Patterns' },
-  { k: 'lesson', label: 'Lessons' },
-  { k: 'instruction', label: 'Instructions' },
+  { k: undefined,     label: 'All',          icon: 'apps' },
+  { k: 'lesson',      label: 'Lessons',       icon: 'school' },
+  { k: 'instruction', label: 'Instructions',  icon: 'list' },
+  { k: 'pattern',     label: 'Patterns',      icon: 'analytics' },
 ];
 
-const STATUS_FILTERS = [
-  { k: undefined, label: 'All' },
+const STATUS_FILTERS_PATTERN = [
+  { k: undefined,        label: 'Any status' },
   { k: 'pending_review', label: 'Awaiting Approval' },
-  { k: 'approved', label: 'Approved' },
-  { k: 'rejected', label: 'Rejected' },
+  { k: 'approved',       label: 'Approved' },
+  { k: 'rejected',       label: 'Rejected' },
 ];
 
-const PATTERN_ONLY_STATUSES = ['pending_review', 'approved', 'rejected'];
+const STATUS_FILTERS_INSTRUCTION = [
+  { k: undefined,        label: 'Any status' },
+  { k: 'pending_review', label: 'Awaiting Approval' },
+  { k: 'approved',       label: 'Approved' },
+  { k: 'rejected',       label: 'Rejected' },
+  { k: 'draft',          label: 'Draft' },
+];
 
 const MAGNITUDE_COLOR = {
   minor: Colors.info,
@@ -142,10 +147,14 @@ function DocTab({ queryKey, fetchFn, title, subtitle, amendNote }) {
 
 // ── Pattern Card ──────────────────────────────────────────────────────────────
 function PatternCard({ item, editingId, editDraft, approvingId, rejectingId, onEdit, onCancelEdit, onDraftChange, onApprove, onReject }) {
+  const [optimisticStatus, setOptimisticStatus] = useState(null);
+  const [optimisticPattern, setOptimisticPattern] = useState(null);
   const isEditing = editingId === item._id;
-  const isPending = item.status === 'pending_review';
-  const isApproved = item.status === 'approved';
-  const isRejected = item.status === 'rejected';
+  const effectiveStatus = optimisticStatus ?? (item.status === 'pending' ? 'pending_review' : item.status);
+  const isPending = effectiveStatus === 'pending_review';
+  const isApproved = effectiveStatus === 'approved';
+  const isRejected = effectiveStatus === 'rejected';
+  const displayPattern = optimisticPattern ?? item.pattern;
 
   return (
     <Paper elevation={0} sx={{ p: 2.5, border: `1px solid ${Colors.border}`, borderRadius: '14px', display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -198,7 +207,7 @@ function PatternCard({ item, editingId, editDraft, approvingId, rejectingId, onE
           sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { bgcolor: '#fff', fontSize: '0.875rem', '& fieldset': { borderColor: Colors.gold, borderWidth: 2 }, '&:hover fieldset': { borderColor: Colors.gold }, '&.Mui-focused fieldset': { borderColor: Colors.gold } } }} />
       ) : (
         <Typography sx={{ fontSize: '0.875rem', color: Colors.textPrimary, lineHeight: 1.6, mb: 1.5 }}>
-          {item.pattern || '—'}
+          {displayPattern || '—'}
         </Typography>
       )}
 
@@ -228,15 +237,19 @@ function PatternCard({ item, editingId, editDraft, approvingId, rejectingId, onE
       {/* Actions */}
       {isPending && (
         <Box sx={{ display: 'flex', gap: 1, mt: 'auto', pt: 1.5 }}>
-          <Button variant="outlined" onClick={() => onReject(item._id)} disabled={rejectingId === item._id}
+          <Button variant="outlined"
+            onClick={() => { setOptimisticStatus('rejected'); onReject(item._id); }}
+            disabled={rejectingId === item._id}
             sx={{ borderColor: Colors.danger, color: Colors.danger, fontSize: '0.8125rem', fontWeight: 700, height: 40, flex: 1, borderRadius: '8px' }}>
             {rejectingId === item._id ? <CircularProgress size={16} sx={{ color: Colors.danger }} /> : 'Reject'}
           </Button>
-          <Button variant="outlined" onClick={() => isEditing ? onCancelEdit() : onEdit(item._id, item.pattern || '')}
+          <Button variant="outlined" onClick={() => isEditing ? onCancelEdit() : onEdit(item._id, displayPattern || '')}
             sx={{ borderColor: Colors.gold, color: Colors.gold, fontSize: '0.8125rem', fontWeight: 700, height: 40, flex: 1, borderRadius: '8px' }}>
             {isEditing ? 'Cancel' : 'Edit'}
           </Button>
-          <Button variant="contained" onClick={() => onApprove(item._id)} disabled={approvingId === item._id}
+          <Button variant="contained"
+            onClick={() => { setOptimisticStatus('approved'); if (isEditing) setOptimisticPattern(editDraft); onApprove(item._id); }}
+            disabled={approvingId === item._id}
             startIcon={<Check sx={{ fontSize: 15 }} />}
             sx={{ bgcolor: Colors.success, '&:hover': { bgcolor: Colors.success + 'dd' }, fontSize: '0.8125rem', fontWeight: 700, height: 40, flex: 1, borderRadius: '8px' }}>
             {approvingId === item._id ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : isEditing ? 'Save & Approve' : 'Approve'}
@@ -403,8 +416,8 @@ export default function Brain() {
   const [outerTab, setOuterTab] = useState('knowledge');
   const [typeFilter, setTypeFilter] = useState(undefined);
   const [status, setStatus] = useState('pending_review');
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const statusFilters = typeFilter === 'instruction' ? STATUS_FILTERS_INSTRUCTION : STATUS_FILTERS_PATTERN;
+  const showStatusFilter = typeFilter === 'pattern';
   const [approvingId, setApprovingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -413,17 +426,11 @@ export default function Brain() {
   const loaderRef = useRef(null);
   const isKnowledge = outerTab === 'knowledge';
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 400);
-    return () => clearTimeout(t);
-  }, [search]);
-
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useInfiniteQuery({
-    queryKey: ['knowledge', typeFilter, status, debouncedSearch],
+    queryKey: ['knowledge', typeFilter, status],
     queryFn: ({ pageParam = 1 }) => knowledgeApi.list({
       type: typeFilter,
       status: status || undefined,
-      search: debouncedSearch || undefined,
       page: pageParam,
       limit: 20,
     }),
@@ -475,7 +482,7 @@ export default function Brain() {
 
   const handleTypeChip = (k) => {
     setTypeFilter(k);
-    if (k && k !== 'pattern' && PATTERN_ONLY_STATUSES.includes(status)) setStatus(undefined);
+    if (k === 'lesson') setStatus(undefined);
   };
 
   const renderCard = (item) => {
@@ -509,52 +516,36 @@ export default function Brain() {
             AIRA'S BRAIN
           </Typography>
           <Typography sx={{ color: '#fff', fontSize: '1.375rem', fontWeight: 400, fontFamily: '"Fraunces", Georgia, serif', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
-            Brain
+            How Aira Learns and Reasons
           </Typography>
         </Box>
         {isKnowledge && (
           <>
-            <TextField
-              size="small" placeholder="Search…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              InputProps={{ startAdornment: <Search sx={{ fontSize: 15, color: 'rgba(255,255,255,0.4)', mr: 0.5 }} /> }}
-              sx={{
-                width: 180,
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: 'rgba(255,255,255,0.08)', borderRadius: '8px', height: 32,
-                  '& input': { color: '#fff', fontSize: '0.8125rem', '&::placeholder': { color: 'rgba(255,255,255,0.4)', opacity: 1 } },
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.15)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.25)' },
-                  '&.Mui-focused fieldset': { borderColor: Colors.gold },
-                },
-              }}
-            />
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '8px', px: 1, height: 32, border: '1px solid rgba(255,255,255,0.2)' }}>
-              <FilterList sx={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', flexShrink: 0 }} />
-              <Select
-                value={status ?? 'all'}
-                onChange={e => setStatus(e.target.value === 'all' ? undefined : e.target.value)}
-                size="small"
-                variant="standard"
-                disableUnderline
-                sx={{
-                  color: '#fff', fontSize: '0.75rem', fontWeight: 600,
-                  fontFamily: '"JetBrains Mono", monospace',
-                  minWidth: 120,
-                  '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.7)', fontSize: 18 },
-                  '& .MuiSelect-select': { py: 0, pr: '20px !important', background: 'none' },
-                }}
-              >
-                {STATUS_FILTERS
-                  .filter(f => !f.k || typeFilter === 'pattern' || typeFilter === undefined || !PATTERN_ONLY_STATUSES.includes(f.k))
-                  .map(f => (
+            {showStatusFilter && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: status ? Colors.gold + '25' : 'rgba(255,255,255,0.1)', borderRadius: '8px', px: 1, height: 32, border: `1px solid ${status ? Colors.gold + '60' : 'rgba(255,255,255,0.2)'}` }}>
+                <FilterList sx={{ fontSize: 14, color: status ? Colors.gold : 'rgba(255,255,255,0.7)', flexShrink: 0 }} />
+                <Select
+                  value={status ?? 'all'}
+                  onChange={e => setStatus(e.target.value === 'all' ? undefined : e.target.value)}
+                  size="small"
+                  variant="standard"
+                  disableUnderline
+                  sx={{
+                    color: status ? Colors.gold : '#fff', fontSize: '0.75rem', fontWeight: 600,
+                    fontFamily: '"JetBrains Mono", monospace',
+                    minWidth: 120,
+                    '& .MuiSelect-icon': { color: status ? Colors.gold : 'rgba(255,255,255,0.7)', fontSize: 18 },
+                    '& .MuiSelect-select': { py: 0, pr: '20px !important', background: 'none' },
+                  }}
+                >
+                  {statusFilters.map(f => (
                     <MenuItem key={String(f.k)} value={f.k ?? 'all'} sx={{ fontSize: '0.8125rem' }}>
                       {f.label}
                     </MenuItem>
                   ))}
-              </Select>
-            </Box>
+                </Select>
+              </Box>
+            )}
           </>
         )}
       </Box>
@@ -579,27 +570,29 @@ export default function Brain() {
           {/* Type chips: All | Patterns | Lessons | Instructions */}
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
             {TYPE_CHIPS.map(c => {
+              const active = typeFilter === c.k;
               const count = c.k ? counts[c.k] : undefined;
+              const IconComp = { apps: Apps, school: School, list: List, analytics: Analytics }[c.icon];
               return (
-                <Chip
+                <Box
                   key={String(c.k)}
-                  label={count != null ? `${c.label} (${count})` : c.label}
-                  size="small"
                   onClick={() => handleTypeChip(c.k)}
                   sx={{
-                    cursor: 'pointer', height: 28, fontSize: '0.6875rem', fontWeight: 600,
-                    bgcolor: typeFilter === c.k ? Colors.navy : '#fff',
-                    color: typeFilter === c.k ? '#fff' : Colors.textSecondary,
-                    border: `1px solid ${typeFilter === c.k ? Colors.navy : Colors.border}`,
-                    borderRadius: '8px',
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    px: '12px', py: '7px', borderRadius: '8px',
+                    cursor: 'pointer', height: 32,
+                    bgcolor: active ? Colors.navy : '#fff',
+                    color: active ? '#fff' : Colors.textSecondary,
+                    border: `1px solid ${active ? Colors.navy : Colors.border}`,
                     transition: 'all 0.15s',
-                    '&:hover': {
-                      bgcolor: typeFilter === c.k ? Colors.navyAlt : Colors.navy + '0f',
-                      borderColor: Colors.navy,
-                      color: typeFilter === c.k ? '#fff' : Colors.navy,
-                    },
+                    '&:hover': { bgcolor: active ? Colors.navyAlt : Colors.navy + '0f', borderColor: Colors.navy, color: active ? '#fff' : Colors.navy },
                   }}
-                />
+                >
+                  {IconComp && <IconComp sx={{ fontSize: 13, color: 'inherit' }} />}
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: 'inherit', lineHeight: 1 }}>
+                    {c.label}{count != null ? ` (${count})` : ''}
+                  </Typography>
+                </Box>
               );
             })}
           </Box>
