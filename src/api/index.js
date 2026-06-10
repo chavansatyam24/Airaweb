@@ -41,6 +41,8 @@ export const queueApi = {
   approve: (id, payload) => api.post(`/api/approvals/${id}/approve`, payload).then(r => r.data),
   reject: (id, body) => api.post(`/api/approvals/${id}/reject`, body).then(r => r.data),
   held: (params) => api.get('/api/approvals/held', { params }).then(r => r.data),
+  bulkApprove: (filter) => api.post('/api/approvals/bulk-approve', { filter: filter ?? 'all' }).then(r => r.data),
+  confirmTemplate: (id, note) => api.post(`/api/approvals/${id}/confirm-template`, note ? { note } : {}).then(r => r.data),
 };
 
 // ============ BRAIN ============
@@ -84,6 +86,9 @@ export const conversationApi = {
   forClient: (clientId) => api.get('/api/conversations', { params: { clientId } }).then(r => r.data),
   sendDirect: (body) => api.post('/api/conversations/send-direct', body).then(r => r.data),
   editAmount: (id, body) => api.patch(`/api/conversations/${id}/edit-amount`, body).then(r => r.data),
+  label: (id, body) => api.patch(`/api/conversations/${id}/label`, body).then(r => r.data),
+  promisePrefill: (id) => api.get(`/api/conversations/${id}/promise-prefill`).then(r => r.data),
+  savePromise: (id, body) => api.patch(`/api/conversations/${id}/promise`, body).then(r => r.data),
 };
 
 // ============ PROMISES ============

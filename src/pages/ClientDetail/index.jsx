@@ -1,13 +1,21 @@
-import { ArrowBack, Close, Edit, PlayCircle, Send, Settings, Sync } from '@mui/icons-material';
+import { ArrowBack, CalendarMonth, Close, Edit, ReportProblemOutlined, Flag, MoreVert, PlayCircle, Send, Settings, Sync } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
+  Menu,
+  MenuItem,
   Snackbar,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -181,7 +189,7 @@ function getBubbleStyle(item) {
   return { bgcolor: '#005C4B', color: '#fff', border: 'none', borderRadius: '18px 18px 4px 18px' };
 }
 
-function MsgBubble({ item, canWrite, approvingId, rejectingId, editingId, editDraft, savingId, onApprove, onReject, onStartEdit, onCancelEdit, onDraftChange, onSaveEdit, onSetLightbox }) {
+function MsgBubble({ item, canWrite, approvingId, rejectingId, editingId, editDraft, savingId, onApprove, onReject, onStartEdit, onCancelEdit, onDraftChange, onSaveEdit, onSetLightbox, onMsgMenu }) {
   const isOutbound = item.direction === 'outbound';
   const ds = item.deliveryStatus;
   const isPending = ds === 'awaiting_approval' || ds === 'held';
@@ -201,7 +209,13 @@ function MsgBubble({ item, canWrite, approvingId, rejectingId, editingId, editDr
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: isOutbound ? 'flex-end' : 'flex-start', mb: 1.25, px: 1 }}>
-      <Box sx={{ maxWidth: '80%', px: 2, py: 1.25, ...style }}>
+      <Box sx={{ position: 'relative', maxWidth: '80%', px: 2, py: 1.25, ...style }}>
+        {!isOutbound && canWrite && (
+          <IconButton size="small" onClick={e => onMsgMenu?.(e, item._id)}
+            sx={{ position: 'absolute', top: 4, right: 4, p: '2px', color: Colors.textMuted, '&:hover': { color: Colors.textPrimary, bgcolor: 'rgba(0,0,0,0.06)' } }}>
+            <MoreVert sx={{ fontSize: 14 }} />
+          </IconButton>
+        )}
         {/* Sender name (outbound only) */}
         {isOutbound && senderName && (
           <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: Colors.goldLight, letterSpacing: '0.05em', fontFamily: MONO, mb: 0.5 }}>
@@ -364,6 +378,28 @@ export default function ClientDetail() {
   const chatEndRef = useRef(null);
   const didInitialScroll = useRef(false);
 
+  // Message action menu
+  const [msgMenuAnchor, setMsgMenuAnchor] = useState(null);
+  const [msgMenuConvId, setMsgMenuConvId] = useState(null);
+
+  // Mark as Dispute
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeConvId, setDisputeConvId] = useState(null);
+  const [disputeNotes, setDisputeNotes] = useState('');
+  const [labeling, setLabeling] = useState(false);
+
+  // Add Promise
+  const [showPromiseModal, setShowPromiseModal] = useState(false);
+  const [promiseConvId, setPromiseConvId] = useState(null);
+  const [promisePrefilling, setPromisePrefilling] = useState(false);
+  const [promiseSaving, setPromiseSaving] = useState(false);
+  const [promiseType, setPromiseType] = useState('specific');
+  const [promiseText, setPromiseText] = useState('');
+  const [promiseDate, setPromiseDate] = useState('');
+  const [promiseAmount, setPromiseAmount] = useState('');
+  const [promisePhone, setPromisePhone] = useState('');
+  const [promiseCurrentBalance, setPromiseCurrentBalance] = useState(null);
+
   const overviewQ = useQuery({
     queryKey: ['client-overview', id],
     queryFn: () => conversationApi.clientOverview(id),
@@ -461,6 +497,64 @@ export default function ClientDetail() {
       setSnack({ open: true, msg: err?.response?.data?.message || 'Could not send', severity: 'error' });
     } finally {
       setSendingDirect(false);
+    }
+  };
+
+  const openMsgMenu = (e, convId) => { setMsgMenuAnchor(e.currentTarget); setMsgMenuConvId(convId); };
+  const closeMsgMenu = () => { setMsgMenuAnchor(null); setMsgMenuConvId(null); };
+
+  const openDisputeModal = (convId) => { setDisputeConvId(convId); setDisputeNotes(''); setShowDisputeModal(true); };
+  const closeDisputeModal = () => { setShowDisputeModal(false); setDisputeConvId(null); setDisputeNotes(''); };
+
+  const handleLabelDispute = async () => {
+    if (!disputeConvId) return;
+    setLabeling(true);
+    try {
+      await conversationApi.label(disputeConvId, { intent: 'dispute', notes: disputeNotes.trim() || undefined });
+      closeDisputeModal();
+      setSnack({ open: true, msg: 'Marked as dispute', severity: 'success' });
+    } catch (err) {
+      setSnack({ open: true, msg: err?.response?.data?.message || 'Could not label', severity: 'error' });
+    } finally {
+      setLabeling(false);
+    }
+  };
+
+  const openPromiseModal = async (convId) => {
+    setPromiseConvId(convId); setPromiseType('specific'); setPromiseText(''); setPromiseDate('');
+    setPromiseAmount(''); setPromisePhone(''); setPromiseCurrentBalance(null);
+    setShowPromiseModal(true); setPromisePrefilling(true);
+    try {
+      const data = await conversationApi.promisePrefill(convId);
+      setPromiseType(data.promiseType ?? 'specific');
+      setPromiseText(data.promiseText ?? '');
+      setPromiseDate(data.expectedDate ?? '');
+      setPromiseAmount(data.expectedAmount != null ? String(data.expectedAmount) : '');
+      setPromisePhone(data.phone ?? '');
+      setPromiseCurrentBalance(data.currentBalance ?? null);
+    } catch (_) {}
+    finally { setPromisePrefilling(false); }
+  };
+
+  const handleSavePromise = async () => {
+    if (!promiseConvId) return;
+    setPromiseSaving(true);
+    try {
+      await conversationApi.savePromise(promiseConvId, {
+        promiseType,
+        promiseText: promiseText.trim() || undefined,
+        expectedDate: promiseDate || undefined,
+        expectedAmount: promiseAmount ? parseFloat(promiseAmount) : undefined,
+        currentBalance: promiseCurrentBalance ?? undefined,
+        muteRemindersUntil: promiseDate || undefined,
+        phone: promisePhone || undefined,
+      });
+      setShowPromiseModal(false);
+      setSnack({ open: true, msg: 'Promise saved', severity: 'success' });
+    } catch (err) {
+      setSnack({ open: true, msg: err?.response?.data?.message || 'Could not save promise', severity: 'error' });
+    } finally {
+      setPromiseSaving(false);
     }
   };
 
@@ -648,6 +742,7 @@ export default function ClientDetail() {
                     onDraftChange={setEditDraft}
                     onSaveEdit={saveEdit}
                     onSetLightbox={setLightboxUrl}
+                    onMsgMenu={openMsgMenu}
                   />
                 </Box>
               );
@@ -716,6 +811,111 @@ export default function ClientDetail() {
           </IconButton>
         </Box>
       )}
+
+      {/* Message action menu */}
+      <Menu anchorEl={msgMenuAnchor} open={Boolean(msgMenuAnchor)} onClose={closeMsgMenu}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{ sx: { borderRadius: '10px', minWidth: 180 } }}>
+        <MenuItem onClick={() => { closeMsgMenu(); openDisputeModal(msgMenuConvId); }} sx={{ gap: 1.5, py: 1 }}>
+          <ReportProblemOutlined sx={{ fontSize: 18, color: Colors.danger }} />
+          <Typography sx={{ fontSize: '0.875rem', color: Colors.danger, fontWeight: 500 }}>Mark as Dispute</Typography>
+        </MenuItem>
+        <Divider sx={{ my: 0.5 }} />
+        <MenuItem onClick={() => { closeMsgMenu(); openPromiseModal(msgMenuConvId); }} sx={{ gap: 1.5, py: 1 }}>
+          <CalendarMonth sx={{ fontSize: 18, color: Colors.gold }} />
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 500 }}>Add Promise</Typography>
+        </MenuItem>
+      </Menu>
+
+      {/* Mark as Dispute dialog */}
+      <Dialog open={showDisputeModal} onClose={() => !labeling && closeDisputeModal()} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 0.5 }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: Colors.danger + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <ReportProblemOutlined sx={{ fontSize: 20, color: Colors.danger }} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: '1rem' }}>Mark as Dispute</Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: Colors.textSecondary }}>Briefly describe the issue with this client</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1.5 }}>
+          <TextField fullWidth multiline minRows={3} autoFocus
+            placeholder="e.g. client denying invoice, claims payment done..."
+            value={disputeNotes}
+            onChange={e => setDisputeNotes(e.target.value.slice(0, 200))}
+            inputProps={{ maxLength: 200 }}
+            sx={{ '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
+          />
+          <Typography sx={{ fontSize: '0.7rem', color: Colors.textMuted, mt: 0.5, textAlign: 'right' }}>{disputeNotes.length}/200</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={closeDisputeModal} disabled={labeling}>Cancel</Button>
+          <Button variant="contained" onClick={handleLabelDispute} disabled={labeling} startIcon={labeling ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <Flag sx={{ fontSize: 14 }} />}
+            sx={{ bgcolor: Colors.danger, '&:hover': { bgcolor: Colors.danger + 'dd' } }}>
+            Mark Dispute
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Promise dialog */}
+      <Dialog open={showPromiseModal} onClose={() => !promiseSaving && setShowPromiseModal(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 0.5 }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: Colors.gold + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <CalendarMonth sx={{ fontSize: 20, color: Colors.gold }} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: '1rem' }}>Add Promise</Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: Colors.textSecondary }}>Record client's payment commitment</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1.5 }}>
+          {promisePrefilling ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2 }}>
+              <CircularProgress size={18} sx={{ color: Colors.gold }} />
+              <Typography sx={{ fontSize: '0.875rem', color: Colors.textSecondary }}>Loading prefill...</Typography>
+            </Box>
+          ) : (
+            <>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: Colors.textMuted, mb: 0.75 }}>PROMISE TYPE</Typography>
+              <ToggleButtonGroup value={promiseType} exclusive onChange={(_, v) => v && setPromiseType(v)} size="small" sx={{ mb: 2 }}>
+                <ToggleButton value="specific" sx={{ px: 2, fontSize: '0.8125rem', textTransform: 'capitalize' }}>Specific</ToggleButton>
+                <ToggleButton value="vague" sx={{ px: 2, fontSize: '0.8125rem', textTransform: 'capitalize' }}>Vague</ToggleButton>
+              </ToggleButtonGroup>
+
+              {promiseText ? (
+                <>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: Colors.textMuted, mb: 0.5 }}>CLIENT SAID</Typography>
+                  <Box sx={{ bgcolor: Colors.cream, borderLeft: `3px solid ${Colors.gold}`, borderRadius: '0 6px 6px 0', px: 1.25, py: 0.75, mb: 2 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: Colors.textSecondary, fontStyle: 'italic' }}>"{promiseText}"</Typography>
+                  </Box>
+                </>
+              ) : null}
+
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: Colors.textMuted, mb: 0.5 }}>EXPECTED DATE</Typography>
+              <TextField fullWidth type="date" size="small" value={promiseDate}
+                onChange={e => setPromiseDate(e.target.value)}
+                InputProps={{ startAdornment: null }}
+                inputProps={{ min: new Date().toISOString().split('T')[0] }}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
+              />
+
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: Colors.textMuted, mb: 0.5 }}>EXPECTED AMOUNT (₹)</Typography>
+              <TextField fullWidth size="small" placeholder="0.00" value={promiseAmount}
+                onChange={e => { const c = e.target.value.replace(/[^0-9.]/g, ''); const p = c.split('.'); setPromiseAmount(p.length > 2 ? p[0] + '.' + p.slice(1).join('') : c); }}
+                sx={{ '& .MuiOutlinedInput-root': { fontSize: '0.875rem' } }}
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={() => setShowPromiseModal(false)} disabled={promiseSaving}>Cancel</Button>
+          <Button variant="contained" onClick={handleSavePromise} disabled={promiseSaving || promisePrefilling}
+            startIcon={promiseSaving ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : null}
+            sx={{ bgcolor: Colors.gold, '&:hover': { bgcolor: Colors.goldLight } }}>
+            Save Promise
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack(s => ({ ...s, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))}>{snack.msg}</Alert>

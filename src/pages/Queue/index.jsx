@@ -6,6 +6,7 @@ import {
   Close,
   Edit,
   ForumOutlined,
+  Groups,
   KeyboardArrowDown,
   KeyboardArrowUp,
   Lock,
@@ -99,6 +100,10 @@ export default function Queue() {
   const [savingAmountId, setSavingAmountId] = useState(null);
   const [expandedFieldsId, setExpandedFieldsId] = useState(null);
   const [selectedFieldIdx, setSelectedFieldIdx] = useState(null);
+  const [showAskTeam, setShowAskTeam] = useState(false);
+  const [askTeamId, setAskTeamId] = useState(null);
+  const [askTeamNote, setAskTeamNote] = useState('');
+  const [askTeamSending, setAskTeamSending] = useState(false);
   const loaderRef = useRef(null);
 
   useEffect(() => {
@@ -211,18 +216,33 @@ export default function Queue() {
 
   const cancelEdit = () => { setEditingId(null); setDraftBody(''); setEditorReason(''); };
 
+  const openAskTeam = (id) => { setAskTeamId(id); setAskTeamNote(''); setShowAskTeam(true); };
+  const handleAskTeam = async () => {
+    if (!askTeamId) return;
+    setAskTeamSending(true);
+    try {
+      await queueApi.confirmTemplate(askTeamId, askTeamNote.trim() || undefined);
+      setShowAskTeam(false);
+      showSnack('Sent to team successfully.', 'success');
+    } catch (err) {
+      showSnack(err?.response?.data?.message || 'Could not send to team');
+    } finally {
+      setAskTeamSending(false);
+    }
+  };
+
   const confirmApproveAll = async () => {
     setApprovingAll(true);
     try {
-      for (const i of items) {
-        try {
-          await queueApi.approve(i._id, { by: user?.email || user?.username || 'unknown', userId: user?.id, userName: user?.name, userRole: user?.role });
-        } catch {}
-      }
+      const result = await queueApi.bulkApprove(goldFilter);
+      setShowApproveAll(false);
       qc.resetQueries({ queryKey: ['approval-queue'] });
+      qc.invalidateQueries({ queryKey: ['client-due-report'] });
+      showSnack(`${result.queued ?? total} messages queued for sending.`, 'success');
+    } catch (err) {
+      showSnack(err?.response?.data?.message || 'Bulk approve failed');
     } finally {
       setApprovingAll(false);
-      setShowApproveAll(false);
     }
   };
 
@@ -470,6 +490,7 @@ export default function Queue() {
                 onBackToFields={() => { setSelectedFieldIdx(null); setEditingAmount(null); setDraftAmount(''); }}
                 onDraftAmountChange={setDraftAmount}
                 onSaveAmount={saveAmount}
+                onAskTeam={openAskTeam}
               />
             ))}
             </Box>
@@ -481,19 +502,57 @@ export default function Queue() {
       </Box>
 
       {/* Approve All Dialog */}
-      <Dialog open={showApproveAll} onClose={() => !approvingAll && setShowApproveAll(false)} maxWidth="xs" fullWidth>
-        <DialogContent sx={{ textAlign: 'center', pt: 4 }}>
+      <Dialog open={showApproveAll} onClose={() => !approvingAll && setShowApproveAll(false)} maxWidth="xs" fullWidth
+        PaperProps={{ sx: { borderRadius: '20px' } }}>
+        <DialogContent sx={{ textAlign: 'center', pt: 4, pb: 2 }}>
           <CheckCircle sx={{ fontSize: 48, color: Colors.success, mb: 2 }} />
-          <Typography variant="h3" sx={{ mb: 1 }}>Approve All {items.length}?</Typography>
+          <Typography variant="h3" sx={{ mb: 1 }}>Approve All {total}?</Typography>
           <Typography sx={{ color: Colors.textSecondary, fontSize: '0.875rem' }}>
-            {items.length} pending messages will be sent to clients immediately.
+            {goldFilter === 'fixed'
+              ? `${total} messages for fixed gold-rate clients`
+              : goldFilter === 'unfix'
+              ? `${total} messages for unfix filter clients`
+              : `All ${total} pending messages`} will be approved and queued for delivery.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-          <Button fullWidth variant="outlined" onClick={() => setShowApproveAll(false)} disabled={approvingAll}>Cancel</Button>
+          <Button fullWidth variant="outlined" onClick={() => setShowApproveAll(false)} disabled={approvingAll}
+            sx={{ borderRadius: '10px', height: 44 }}>Cancel</Button>
           <Button fullWidth variant="contained" onClick={confirmApproveAll} disabled={approvingAll}
-            sx={{ bgcolor: Colors.success, '&:hover': { bgcolor: Colors.success + 'dd' } }}>
+            sx={{ bgcolor: Colors.success, '&:hover': { bgcolor: Colors.success + 'dd' }, borderRadius: '10px', height: 44, fontWeight: 700 }}>
             {approvingAll ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Approve All'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Ask Team Dialog */}
+      <Dialog open={showAskTeam} onClose={() => !askTeamSending && setShowAskTeam(false)} maxWidth="xs" fullWidth
+        PaperProps={{ sx: { borderRadius: '20px' } }}>
+        <DialogContent sx={{ pt: 3.5, pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#4A90D915', border: '1px solid #4A90D940', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Groups sx={{ fontSize: 20, color: '#4A90D9' }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '1.125rem', fontWeight: 500, color: Colors.navy, lineHeight: 1.2 }}>Ask Team</Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: Colors.textSecondary, mt: 0.25 }}>Add an optional note for the internal team.</Typography>
+            </Box>
+          </Box>
+          <TextField
+            fullWidth multiline rows={3} autoFocus
+            placeholder="e.g. Please check if invoice total matches Gati"
+            value={askTeamNote}
+            onChange={e => setAskTeamNote(e.target.value)}
+            disabled={askTeamSending}
+            sx={{ '& .MuiOutlinedInput-root': { fontSize: '0.875rem', borderRadius: '10px' } }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button fullWidth variant="outlined" onClick={() => setShowAskTeam(false)} disabled={askTeamSending}
+            sx={{ borderRadius: '10px', height: 44 }}>Cancel</Button>
+          <Button fullWidth variant="contained" onClick={handleAskTeam} disabled={askTeamSending}
+            sx={{ bgcolor: '#4A90D9', '&:hover': { bgcolor: '#3A7DC9' }, borderRadius: '10px', height: 44, fontWeight: 700 }}>
+            {askTeamSending ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Send to Team'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -682,13 +741,13 @@ function ApprovalCard({
   approvingId, rejectingId, draftAmount, savingAmountId, regeneratingConvId,
   onStartEdit, onCancelEdit, onDraftChange, onReasonChange, onSaveAndSend,
   onApprove, onReject, onSetLightbox, onViewThread, onRegenSingle,
-  onToggleFields, onSelectField, onBackToFields, onDraftAmountChange, onSaveAmount, onOpenInternalTray,
+  onToggleFields, onSelectField, onBackToFields, onDraftAmountChange, onSaveAmount, onOpenInternalTray, onAskTeam,
 }) {
   const isEditing = editingId === item._id;
   const isDisputeItem = item.intent === 'dispute_response' && Array.isArray(item.internalCommunication) && item.internalCommunication.length > 0;
 
   return (
-    <Paper elevation={0} sx={{ mb: '14px', p: 2, bgcolor: '#fff', border: `1px solid ${Colors.border}`, borderRadius: '14px', display: 'flex', flexDirection: 'column' }}>
+    <Paper elevation={0} sx={{ mb: '14px', p: 2, bgcolor: '#fff', border: `1px solid ${Colors.border}`, borderRadius: '14px', display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
 
       {/* ── Head: tier + name + amount ── */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
@@ -698,10 +757,14 @@ function ApprovalCard({
             <Typography sx={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '0.9375rem', fontWeight: 500, color: Colors.navy, letterSpacing: '-0.2px', lineHeight: 1.3 }} noWrap>
               {item.clientName || item.clientCode || 'Client'}
             </Typography>
-            {(item.clientWaName || item.customerNumber) && (
-              <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', color: Colors.textMuted, letterSpacing: '0.04em', mb: 0.25 }} noWrap>
-                {item.clientWaName && item.clientWaName !== item.clientName ? item.clientWaName : ''}
-                {item.customerNumber ? (item.clientWaName && item.clientWaName !== item.clientName ? ' · ' : '') + item.customerNumber : ''}
+            {item.clientWaName && item.clientWaName !== item.clientName && (
+              <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', color: Colors.textMuted, letterSpacing: '0.04em', mb: 0.1 }} noWrap>
+                {item.clientWaName}
+              </Typography>
+            )}
+            {item.clientPhone && (
+              <Typography sx={{ fontFamily: MONO, fontSize: '0.5625rem', color: Colors.textSecondary, letterSpacing: '0.03em', mb: 0.25 }} noWrap>
+                +{item.clientPhone}
               </Typography>
             )}
             {/* Meta row: triggerType badge + lastSyncedAt + gold badge */}
@@ -724,16 +787,17 @@ function ApprovalCard({
             </Box>
           </Box>
         </Box>
-        <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-          {item.totalBalance > 0 && (
-            <>
-              <Typography sx={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '1.125rem', fontWeight: 600, color: Colors.danger, letterSpacing: '-0.3px', lineHeight: 1 }}>
-                ₹{Math.round(item.totalBalance / 100000).toLocaleString('en-IN')}L
-              </Typography>
-              <Typography sx={{ fontFamily: MONO, fontSize: '0.4375rem', color: Colors.textMuted, letterSpacing: '0.1em', mt: 0.25 }}>OVERDUE</Typography>
-            </>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.75, flexShrink: 0 }}>
+          {item.metadata?.templateName && (
+            <Tooltip title="Ask Team">
+              <IconButton size="small"
+                sx={{ border: `1px solid #4A90D950`, borderRadius: '8px', p: '4px', width: 28, height: 28, bgcolor: '#4A90D910', '&:hover': { bgcolor: '#4A90D920' } }}
+                onClick={() => onAskTeam(item._id)}>
+                <Groups sx={{ fontSize: 14, color: '#4A90D9' }} />
+              </IconButton>
+            </Tooltip>
           )}
-          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end', mt: 0.75 }}>
+          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
             <Button size="small" onClick={() => onViewThread(item._id, item.clientCode, item.clientName)}
               sx={{ height: 22, fontSize: '0.5625rem', fontWeight: 700, color: Colors.gold, fontFamily: MONO, letterSpacing: '0.04em', p: '2px 8px', minWidth: 0, border: `1px solid ${Colors.gold}50`, borderRadius: '6px' }}>
               View Thread
@@ -804,15 +868,17 @@ function ApprovalCard({
         const isExpanded = expandedFieldsId === item._id;
         const isSaving = savingAmountId === item._id;
         return (
-          <Box sx={{ mb: 1.5, border: `1px solid ${Colors.gold}35`, borderRadius: '10px', overflow: 'hidden' }}>
+          <Box sx={{ mb: 1.5, position: 'relative' }}>
+            {/* Toggle header — always in flow */}
             <Box
               onClick={() => onToggleFields(item._id)}
               sx={{
                 display: 'flex', alignItems: 'center', gap: 1,
                 px: 1.5, py: 1,
                 bgcolor: Colors.gold + '12',
+                border: `1px solid ${Colors.gold}35`,
+                borderRadius: isExpanded ? '10px 10px 0 0' : '10px',
                 cursor: 'pointer',
-                borderBottom: isExpanded ? `1px solid ${Colors.gold}25` : 'none',
                 '&:hover': { bgcolor: Colors.gold + '20' },
                 transition: 'background 0.15s',
                 userSelect: 'none',
@@ -832,9 +898,19 @@ function ApprovalCard({
                 : <KeyboardArrowDown sx={{ fontSize: 18, color: Colors.gold }} />}
             </Box>
 
+            {/* Expanded content — absolute overlay, does not affect card height */}
             {isExpanded && (
-              selectedFieldIdx === null ? (
-                <Box sx={{ bgcolor: '#fff' }}>
+              <Box sx={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+                bgcolor: '#fff',
+                border: `1px solid ${Colors.gold}35`,
+                borderTop: 'none',
+                borderRadius: '0 0 10px 10px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                overflow: 'hidden',
+              }}>
+              {selectedFieldIdx === null ? (
+                <Box>
                   <Typography sx={{ px: 1.5, pt: 1, pb: 0.5, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, fontFamily: MONO, letterSpacing: '0.12em' }}>
                     WHICH FIELD TO EDIT?
                   </Typography>
@@ -908,7 +984,8 @@ function ApprovalCard({
                     </Box>
                   );
                 })()
-              )
+              )}
+              </Box>
             )}
           </Box>
         );
