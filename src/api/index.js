@@ -121,7 +121,7 @@ export const adminApi = {
   testCliq: () => api.post('/api/admin/test-cliq').then(r => r.data),
   auditLog: (limit = 100) => api.get('/api/admin/audit-log', { params: { limit } }).then(r => r.data),
   registerPushToken: (token, userId) => api.post('/api/admin/push-token', { token, userId }).then(r => r.data),
-  regeneratePendingReminders: () => api.post('/api/admin/regenerate-pending-reminders', undefined, { timeout: 120000 }).then(r => r.data),
+  regeneratePendingReminders: (mode) => api.post('/api/admin/regenerate-pending-reminders', mode ? { mode } : undefined, { timeout: mode === 'generate' ? 600000 : 120000 }).then(r => r.data),
   regenerateReminder: (convId) => api.post('/api/admin/regenerate-reminder', { convId }, { timeout: 120000 }).then(r => r.data),
   generateTemplate: (clientCode) => api.post('/api/admin/generate-template', { clientCode }, { timeout: 60000 }).then(r => r.data),
 };

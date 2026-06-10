@@ -270,7 +270,7 @@ export default function ClientOverrides() {
                   Generate Template Message
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: Colors.textSecondary }}>
-                  Create WhatsApp template with latest dues data
+                  Create WhatsApp template message with latest dues data. Data reflects today's balances.
                 </Typography>
               </Box>
               <Button

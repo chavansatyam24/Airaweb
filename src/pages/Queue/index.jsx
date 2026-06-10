@@ -1,4 +1,5 @@
 import {
+  AddCircleOutlined,
   ArrowBack,
   CheckCircle,
   ChevronRight,
@@ -225,11 +226,11 @@ export default function Queue() {
     }
   };
 
-  const doRegenerateAll = async () => {
+  const doRegenerateAll = async (mode) => {
     setShowRegenAll(false);
     try {
       setRegenerating(true);
-      await adminApi.regeneratePendingReminders();
+      await adminApi.regeneratePendingReminders(mode);
       await refetch();
     } catch (err) {
       const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
@@ -427,6 +428,7 @@ export default function Queue() {
           </Box>
         ) : (
           <>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
             {items.map(item => (
               <ApprovalCard
                 key={item._id}
@@ -470,6 +472,7 @@ export default function Queue() {
                 onSaveAmount={saveAmount}
               />
             ))}
+            </Box>
             <div ref={loaderRef} style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {isFetchingNextPage && <CircularProgress size={20} sx={{ color: Colors.gold }} />}
             </div>
@@ -497,18 +500,34 @@ export default function Queue() {
 
       {/* Regen All Dialog */}
       <Dialog open={showRegenAll} onClose={() => !regenerating && setShowRegenAll(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Regenerate All Reminders?</DialogTitle>
+        <DialogTitle sx={{ pb: 0.5 }}>Reminders</DialogTitle>
         <DialogContent>
-          <Typography sx={{ color: Colors.textSecondary, fontSize: '0.875rem' }}>
-            Re-syncs all data of Template messages. Takes 1–2 min.
+          <Typography sx={{ color: Colors.textSecondary, fontSize: '0.875rem', mb: 2 }}>
+            Choose an action. Both take 1–2 min.
           </Typography>
+          <Box
+            onClick={() => !regenerating && doRegenerateAll('refresh')}
+            sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, p: 1.5, mb: 1, border: `1px solid ${Colors.border}`, borderRadius: '10px', cursor: regenerating ? 'default' : 'pointer', opacity: regenerating ? 0.5 : 1, '&:hover': regenerating ? {} : { bgcolor: Colors.gold + '10', borderColor: Colors.gold + '60' } }}
+          >
+            <Refresh sx={{ fontSize: 20, color: Colors.gold, mt: 0.25, flexShrink: 0 }} />
+            <Box>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: Colors.textPrimary }}>Refresh Pending Queue</Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: Colors.textSecondary, mt: 0.25 }}>Re-sync Gati data for messages already in approval queue</Typography>
+            </Box>
+          </Box>
+          <Box
+            onClick={() => !regenerating && doRegenerateAll('generate')}
+            sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, p: 1.5, border: `1px solid ${Colors.border}`, borderRadius: '10px', cursor: regenerating ? 'default' : 'pointer', opacity: regenerating ? 0.5 : 1, '&:hover': regenerating ? {} : { bgcolor: Colors.success + '10', borderColor: Colors.success + '60' } }}
+          >
+            <AddCircleOutlined sx={{ fontSize: 20, color: Colors.success, mt: 0.25, flexShrink: 0 }} />
+            <Box>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: Colors.success }}>Generate for All Clients</Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: Colors.textSecondary, mt: 0.25 }}>Deletes all existing pending reminders, then creates fresh ones for every eligible client</Typography>
+            </Box>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button variant="outlined" onClick={() => setShowRegenAll(false)}>Cancel</Button>
-          <Button variant="contained" onClick={doRegenerateAll}
-            sx={{ bgcolor: Colors.gold, '&:hover': { bgcolor: Colors.goldLight } }}>
-            Regenerate
-          </Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button variant="outlined" onClick={() => setShowRegenAll(false)} disabled={regenerating}>Cancel</Button>
         </DialogActions>
       </Dialog>
 
@@ -669,7 +688,7 @@ function ApprovalCard({
   const isDisputeItem = item.intent === 'dispute_response' && Array.isArray(item.internalCommunication) && item.internalCommunication.length > 0;
 
   return (
-    <Paper elevation={0} sx={{ mb: '14px', p: 2, bgcolor: '#fff', border: `1px solid ${Colors.border}`, borderRadius: '14px' }}>
+    <Paper elevation={0} sx={{ mb: '14px', p: 2, bgcolor: '#fff', border: `1px solid ${Colors.border}`, borderRadius: '14px', display: 'flex', flexDirection: 'column' }}>
 
       {/* ── Head: tier + name + amount ── */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
@@ -747,7 +766,8 @@ function ApprovalCard({
         </Box>
       </Box>
 
-      {/* ── Client said ── */}
+      {/* ── Client said + Aira will send ── */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, mb: 1.5 }}>
       {item.lastClientMessage?.body && (
         <Box sx={{ bgcolor: Colors.cream, borderLeft: '3px solid', borderColor: Colors.textMuted, borderRadius: '0 8px 8px 0', px: '14px', py: '10px', mb: 1 }}>
           <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', fontWeight: 700, color: Colors.textMuted, letterSpacing: '0.15em', mb: 0.75 }}>CLIENT SAID</Typography>
@@ -758,7 +778,7 @@ function ApprovalCard({
       )}
 
       {/* ── Aira will send ── */}
-      <Box sx={{ bgcolor: Colors.cardAlt, borderLeft: '3px solid', borderColor: Colors.gold, borderRadius: '0 8px 8px 0', px: '14px', py: '12px', mb: 1.5 }}>
+      <Box sx={{ flex: 1, bgcolor: Colors.cardAlt, borderLeft: '3px solid', borderColor: Colors.gold, borderRadius: '0 8px 8px 0', px: '14px', py: '12px' }}>
         <Typography sx={{ fontFamily: MONO, fontSize: '0.5rem', fontWeight: 700, color: Colors.gold, letterSpacing: '0.15em', mb: 0.75 }}>AIRA WILL SEND</Typography>
         {isEditing ? (
           <TextField fullWidth multiline minRows={3} value={draftBody} onChange={e => onDraftChange(e.target.value)} size="small"
@@ -771,6 +791,7 @@ function ApprovalCard({
             <img src={a.url} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
           </Box>
         ))}
+      </Box>
       </Box>
 
       {/* ── Placeholder editors (collapsible) ── */}
@@ -895,7 +916,7 @@ function ApprovalCard({
 
       {/* ── Actions ── */}
       {canWrite && !safeScroll && (
-        <Box>
+        <Box sx={{ mt: 'auto', pt: 1.5 }}>
           {isEditing ? (
             <Stack gap={2}>
               <TextField fullWidth size="small" placeholder="Reason for edit (optional)"
@@ -911,20 +932,20 @@ function ApprovalCard({
               </Box>
             </Stack>
           ) : (
-            <Box sx={{ display: 'flex', gap: '6px' }}>
+            <Box sx={{ display: 'flex', gap: '6px', alignItems: 'stretch' }}>
               <Button fullWidth variant="outlined" onClick={() => onReject(item._id)} disabled={rejectingId === item._id}
-                sx={{ flex: 1, borderColor: Colors.danger, color: Colors.danger, fontSize: '0.75rem', fontWeight: 600, borderRadius: '8px' }}>
+                sx={{ flex: 1, height: 40, borderColor: Colors.danger, color: Colors.danger, fontSize: '0.75rem', fontWeight: 600, borderRadius: '8px', minWidth: 0 }}>
                 {rejectingId === item._id ? <CircularProgress size={14} sx={{ color: Colors.danger }} /> : 'Reject'}
               </Button>
               {!item.metadata?.templateName && (
                 <Button fullWidth variant="outlined" startIcon={<Edit sx={{ fontSize: 13 }} />}
                   onClick={() => onStartEdit(item._id, item.body)}
-                  sx={{ flex: 1, borderColor: Colors.border, color: Colors.textPrimary, fontSize: '0.75rem', fontWeight: 600, borderRadius: '8px' }}>
+                  sx={{ flex: 1, height: 40, borderColor: Colors.border, color: Colors.textPrimary, fontSize: '0.75rem', fontWeight: 600, borderRadius: '8px', minWidth: 0 }}>
                   Edit
                 </Button>
               )}
               <Button fullWidth variant="contained" onClick={() => onApprove(item._id)} disabled={approvingId === item._id}
-                sx={{ flex: 1, bgcolor: Colors.success, '&:hover': { bgcolor: Colors.success + 'ee' }, fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px' }}>
+                sx={{ flex: 1, height: 40, bgcolor: Colors.success, '&:hover': { bgcolor: Colors.success + 'ee' }, fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', minWidth: 0 }}>
                 {approvingId === item._id ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'Approve & Send'}
               </Button>
             </Box>

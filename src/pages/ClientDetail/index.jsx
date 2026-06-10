@@ -1,4 +1,4 @@
-import { ArrowBack, Close, Edit, Send, Settings, Sync } from '@mui/icons-material';
+import { ArrowBack, Close, Edit, PlayCircle, Send, Settings, Sync } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -14,7 +14,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { conversationApi, queueApi } from '../../api/index';
+import { clientApi, conversationApi, queueApi } from '../../api/index';
 import { BASE_URL } from '../../api/http';
 import { useAuth, useCanWrite } from '../../store/auth';
 import { formatINRLakhs, formatTime } from '../../utils/format';
@@ -116,6 +116,61 @@ function AuthImage({ src, onLightbox, isDark }) {
   );
 }
 
+function AuthVideo({ src }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const handleOpen = () => {
+    setModalOpen(true);
+    if (!blobUrl && !failed) {
+      setLoading(true);
+      fetchAuthBlob(src)
+        .then(blob => { setBlobUrl(URL.createObjectURL(blob)); setLoading(false); })
+        .catch(() => { setFailed(true); setLoading(false); });
+    }
+  };
+
+  useEffect(() => {
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [blobUrl]);
+
+  return (
+    <>
+      <Box
+        onClick={handleOpen}
+        sx={{ width: 200, height: 130, borderRadius: 1.5, bgcolor: '#111', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer', mb: 0.5, '&:hover': { opacity: 0.85 } }}
+      >
+        <PlayCircle sx={{ fontSize: 48, color: '#fff' }} />
+        <Typography sx={{ color: '#fff', fontSize: '0.75rem', fontWeight: 600 }}>Video</Typography>
+      </Box>
+
+      {modalOpen && (
+        <Box
+          onClick={() => setModalOpen(false)}
+          sx={{ position: 'fixed', inset: 0, bgcolor: '#000', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <IconButton onClick={() => setModalOpen(false)} sx={{ position: 'absolute', top: 16, right: 16, color: '#fff', zIndex: 1 }}>
+            <Close sx={{ fontSize: 28 }} />
+          </IconButton>
+          {loading && <CircularProgress sx={{ color: Colors.gold }} />}
+          {failed && <Typography sx={{ color: '#fff' }}>Video unavailable</Typography>}
+          {blobUrl && (
+            <video
+              src={blobUrl}
+              controls
+              autoPlay
+              onClick={e => e.stopPropagation()}
+              style={{ maxWidth: '90%', maxHeight: '85%' }}
+            />
+          )}
+        </Box>
+      )}
+    </>
+  );
+}
+
 function getBubbleStyle(item) {
   const ds = item.deliveryStatus;
   const isOut = item.direction === 'outbound';
@@ -163,6 +218,32 @@ function MsgBubble({ item, canWrite, approvingId, rejectingId, editingId, editDr
           </Box>
         )}
 
+        {/* Attachments — above body */}
+        {!isEditing && (
+          <Box sx={{ mb: item.body && !BODY_PLACEHOLDER.test(item.body.trim()) ? 0.75 : 0 }}>
+            {/* Resolved image (from attachments or metadata.imageUrl) */}
+            {resolvedImageUrl && (
+              <AuthImage src={resolvedImageUrl} onLightbox={onSetLightbox} isDark={isDark} />
+            )}
+            {/* Non-image attachments — video inline, others downloadable */}
+            {item.attachments?.filter(a => a.type !== 'image').map((a, idx) => (
+              a.type === 'video' && a.url ? (
+                <AuthVideo key={idx} src={a.url} />
+              ) : (
+                <Box
+                  key={idx}
+                  onClick={() => a.url && downloadAuthFile(a.url, a.filename)}
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, bgcolor: isDark ? 'rgba(255,255,255,0.12)' : '#f0f0f0', borderRadius: '6px', px: 1, py: 0.5, mb: 0.5, cursor: a.url ? 'pointer' : 'default', '&:hover': a.url ? { opacity: 0.8 } : {} }}
+                >
+                  <Typography sx={{ fontSize: '0.75rem', color: isDark ? '#fff' : Colors.textPrimary }}>
+                    📎 {a.filename || a.type} {a.url ? '↓' : ''}
+                  </Typography>
+                </Box>
+              )
+            ))}
+          </Box>
+        )}
+
         {/* Body — suppress [image]/[document] placeholders */}
         {isEditing ? (
           <TextField
@@ -179,30 +260,8 @@ function MsgBubble({ item, canWrite, approvingId, rejectingId, editingId, editDr
           )
         )}
 
-        {/* Attachments */}
-        {!isEditing && (
-          <Box sx={{ mt: item.body && !BODY_PLACEHOLDER.test(item.body.trim()) ? 0.75 : 0 }}>
-            {/* Resolved image (from attachments or metadata.imageUrl) */}
-            {resolvedImageUrl && (
-              <AuthImage src={resolvedImageUrl} onLightbox={onSetLightbox} isDark={isDark} />
-            )}
-            {/* Non-image attachments — downloadable */}
-            {item.attachments?.filter(a => a.type !== 'image').map((a, idx) => (
-              <Box
-                key={idx}
-                onClick={() => a.url && downloadAuthFile(a.url, a.filename)}
-                sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, bgcolor: isDark ? 'rgba(255,255,255,0.12)' : '#f0f0f0', borderRadius: '6px', px: 1, py: 0.5, mb: 0.5, cursor: a.url ? 'pointer' : 'default', '&:hover': a.url ? { opacity: 0.8 } : {} }}
-              >
-                <Typography sx={{ fontSize: '0.75rem', color: isDark ? '#fff' : Colors.textPrimary }}>
-                  📎 {a.filename || a.type} {a.url ? '↓' : ''}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        )}
-
         {/* Intent tag (inbound only) */}
-        {item.intent && !isOutbound && (
+        {item.intent && item.intent.toLowerCase() !== 'unknown' && !isOutbound && (
           <Box sx={{ display: 'inline-flex', mt: 0.5, bgcolor: Colors.gold + '15', borderRadius: '3px', px: '6px', py: '2px' }}>
             <Typography sx={{ fontSize: '0.4375rem', fontWeight: 400, color: Colors.gold, letterSpacing: '0.03em' }}>
               {item.intent.replace(/_/g, ' ').toUpperCase()}
@@ -394,7 +453,7 @@ export default function ClientDetail() {
     if (!directMsg.trim()) return;
     try {
       setSendingDirect(true);
-      await conversationApi.sendDirect({ clientCode: id, message: directMsg.trim(), by: user?.username || 'unknown' });
+      await clientApi.sendMessage(id, { phone: overview?.customerNumber, body: directMsg.trim() });
       setDirectMsg('');
       await loadInitial();
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
