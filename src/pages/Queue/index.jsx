@@ -16,7 +16,7 @@ import {
   Search,
   Send,
   SwapVert,
-  Timer,
+  AccessTime,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -310,7 +310,7 @@ export default function Queue() {
         */}
         <Tooltip title="Held messages">
           <IconButton size="small" sx={{ color: '#fff' }} onClick={() => navigate('/held')}>
-            <Timer fontSize="small" />
+            <AccessTime fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Regenerate all">
